@@ -1,0 +1,36 @@
+﻿namespace CraftyNative3D.Meshes;
+
+public static class PrimitiveMeshes
+{
+    public static Mesh Cube { get; } = new(
+        [
+            -0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f,  0.5f, -0.5f,
+            -0.5f,  0.5f, -0.5f,
+
+            -0.5f, -0.5f,  0.5f,
+             0.5f, -0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f,  0.5f
+        ],
+        [
+            0, 1, 2,
+            0, 2, 3,
+
+            4, 6, 5,
+            4, 7, 6,
+
+            0, 4, 5,
+            0, 5, 1,
+
+            2, 6, 7,
+            2, 7, 3,
+
+            0, 3, 7,
+            0, 7, 4,
+
+            1, 5, 6,
+            1, 6, 2
+        ]);
+}

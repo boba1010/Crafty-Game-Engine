@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Crafty.Engine/Crafty.Engine.csproj" />
+  <Project Path="CraftyNative2D/CraftyNative2D.csproj" Id="436ce90d-6288-49b6-994f-537fa0915865" />
+  <Project Path="CraftyNative3D/CraftyNative3D.csproj" Id="ce851fa7-cacc-4991-a503-ace389da7bc6" />
+  <Project Path="D:\My Programs\Vulcan\Vulcan.SourceGen\Vulcan.SourceGen.csproj" Id="96dbbdb7-4be9-4231-841d-1aa52ae667b7" />
+  <Project Path="D:\My Programs\Vulcan\Vulcan\Vulcan.csproj" Id="41546300-62a7-4f76-a191-fcb0e960ca96" />
+</Solution>
