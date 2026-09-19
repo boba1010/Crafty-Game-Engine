@@ -18,12 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Graphics\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\CraftyNative2D\CraftyNative2D.csproj" />
-    <ProjectReference Include="..\CraftyNative3D\CraftyNative3D.csproj" />
+    <ProjectReference Include="..\CraftyNative\CraftyNative.csproj" />
   </ItemGroup>
 
 </Project>

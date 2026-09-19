@@ -1,4 +1,6 @@
-﻿namespace CraftyNative3D;
+﻿using CraftyNative.ThreeD.Meshes;
+
+namespace CraftyNative.ThreeD;
 
 public readonly struct Renderable(Mesh mesh)
 {

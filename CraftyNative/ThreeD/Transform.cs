@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace CraftyNative3D;
+namespace CraftyNative.ThreeD;
 
 public struct Transform
 {

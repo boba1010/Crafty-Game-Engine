@@ -1,4 +1,4 @@
-﻿namespace CraftyNative3D.Meshes;
+﻿namespace CraftyNative.ThreeD.Meshes;
 
 public static class PrimitiveMeshes
 {

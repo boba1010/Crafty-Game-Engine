@@ -1,4 +1,4 @@
-﻿namespace CraftyNative3D;
+﻿namespace CraftyNative.ThreeD.Meshes;
 
 public sealed class Mesh(float[] vertices, uint[] indices, uint vertexStride = 12)
 {

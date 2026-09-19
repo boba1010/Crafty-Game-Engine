@@ -1,4 +1,4 @@
-﻿namespace CraftyNative3D;
+﻿namespace CraftyNative.ThreeD;
 
 public static class FPSTimer
 {

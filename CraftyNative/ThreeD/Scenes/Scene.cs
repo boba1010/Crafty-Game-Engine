@@ -1,7 +1,7 @@
 ﻿using Silk.NET.Windowing;
 using System.Runtime.InteropServices;
 
-namespace CraftyNative3D.Scenes;
+namespace CraftyNative.ThreeD.Scenes;
 
 public sealed class Scene : IDisposable
 {

@@ -1,4 +1,5 @@
-﻿using CraftyNative3D.Scenes;
+﻿using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ThreeD.Scenes;
 using Silk.NET.Windowing;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -7,7 +8,7 @@ using Vulcan.DirectX;
 using Vulcan.Graphics;
 using Vulcan.Graphics.Descriptions;
 
-namespace CraftyNative3D;
+namespace CraftyNative.ThreeD;
 
 internal unsafe static class CraftyNative3D
 {
