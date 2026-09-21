@@ -18,7 +18,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Crafty.ChunkGeneration\Crafty.ChunkGeneration.csproj" />
+    <ProjectReference Include="..\Crafty.SDK\Crafty.SDK.csproj" />
     <ProjectReference Include="..\CraftyNative\CraftyNative.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Entities\" />
   </ItemGroup>
 
 </Project>

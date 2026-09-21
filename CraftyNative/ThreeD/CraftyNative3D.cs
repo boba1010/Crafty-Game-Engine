@@ -179,7 +179,12 @@ internal unsafe static class CraftyNative3D
         ((D3D11CommandBuffer)_commandBuffer).RenderTargetView = ((D3D11Swapchain)_swapchain).RenderTargetView;
         ((D3D11CommandBuffer)_commandBuffer).DepthStencilView = ((D3D11Texture)_depthTexture).DepthStencilView;
 
-        Window.FramebufferResize += _ => CreateSwapchain(true);
+        Window.FramebufferResize += newSize =>
+        {
+            if (newSize.X <= 0 || newSize.Y <= 0)
+                return;
+            CreateSwapchain(true);
+        };
     }
 
     private static void CreateSwapchain(bool updateViews)
@@ -216,7 +221,7 @@ internal unsafe static class CraftyNative3D
         }
     }
 
-    public static void Render(Scene scene)
+    public static void Render(ref Scene scene, WorldObject cameraObject)
     {
         _commandBuffer.Begin();
 
@@ -245,9 +250,30 @@ internal unsafe static class CraftyNative3D
 
         _commandBuffer.SetPipeline(_pipeline);
 
+        ref var cameraTransform = ref scene.GetComponent<Transform>(cameraObject);
+        ref var camera = ref scene.GetComponent<Camera>(cameraObject);
+
+        var forward = Vector3.Transform(
+            -Vector3.UnitZ,
+            Quaternion.CreateFromYawPitchRoll(
+                cameraTransform.Rotation.Y,
+                cameraTransform.Rotation.X,
+                0f));
+
+        var view = Matrix4x4.CreateLookAt(
+            cameraTransform.Position,
+            cameraTransform.Position + forward,
+            Vector3.UnitY);
+
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
+            camera.FieldOfView,
+            size.X / (float)size.Y,
+            camera.NearPlane,
+            camera.FarPlane);
+
         foreach (var (objectId, renderable) in scene.Renderables)
         {
-            var transform = scene.GetTransform(new WorldObject(objectId));
+            ref var transform = ref scene.GetComponent<Transform>(new WorldObject(objectId));
 
             var model =
                 Matrix4x4.CreateScale(transform.Scale) *
@@ -256,7 +282,7 @@ internal unsafe static class CraftyNative3D
                 Matrix4x4.CreateRotationZ(transform.Rotation.Z) *
                 Matrix4x4.CreateTranslation(transform.Position);
 
-            var mvp = model * scene.Camera.View * scene.Camera.Projection;
+            var mvp = model * view * projection;
 
             var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
 

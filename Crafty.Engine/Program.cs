@@ -1,6 +1,4 @@
-﻿using Crafty.Engine.UI;
-
-namespace Crafty.Engine;
+﻿namespace Crafty.Engine;
 
 internal class Program
 {

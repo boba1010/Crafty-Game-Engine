@@ -1,29 +1,38 @@
-﻿using Silk.NET.Windowing;
+﻿using CraftyNative.ThreeD.ECS;
 using System.Runtime.InteropServices;
 
 namespace CraftyNative.ThreeD.Scenes;
 
-public sealed class Scene : IDisposable
+public struct Scene
 {
-    public Camera Camera { get; }
     private uint _nextObjectId;
-    private readonly Dictionary<uint, Transform> _transforms = [];
     private readonly Dictionary<uint, Renderable> _renderables = [];
-    internal IReadOnlyDictionary<uint, Renderable> Renderables => _renderables;
+    private readonly Dictionary<uint, uint> _parents = [];
+    public List<ISystem> Systems { get; } = [];
+    private readonly Dictionary<Type, object> _componentStores = [];
+    internal readonly IReadOnlyDictionary<uint, Renderable> Renderables => _renderables;
 
-    public Scene(IWindow window)
+    public Scene()
     {
-        Camera = new(window)
-        {
-            Transform = new() { Position = new(0, 0, -3) }
-        };
+        Systems.Add(new HierarchySystem());
+    }
+
+    public void SetParent(WorldObject child, WorldObject parent)
+    {
+        _parents[child.Id] = parent.Id;
+    }
+
+    public WorldObject? GetParent(WorldObject child)
+    {
+        if (!_parents.TryGetValue(child.Id, out var parentId))
+            return null;
+
+        return new WorldObject(parentId);
     }
 
     public WorldObject CreateObject()
     {
-        var objectId = new WorldObject(_nextObjectId++);
-        _transforms[objectId.Id] = new Transform();
-        return objectId;
+        return new WorldObject(_nextObjectId++);
     }
 
     public void SetRenderable(WorldObject obj, Renderable renderable)
@@ -31,23 +40,36 @@ public sealed class Scene : IDisposable
         _renderables[obj.Id] = renderable;
     }
 
-    public ref Transform GetTransform(WorldObject worldObject)
-    {
-        return ref CollectionsMarshal.GetValueRefOrNullRef(_transforms, worldObject.Id);
-    }
-
     public ref Renderable GetRenderable(WorldObject worldObject)
     {
         return ref CollectionsMarshal.GetValueRefOrNullRef(_renderables, worldObject.Id);
     }
 
-    public void Render()
+    private ComponentStore<T> GetStore<T>() where T : struct, IComponent
     {
-        CraftyNative3D.Render(this);
+        if (!_componentStores.TryGetValue(typeof(T), out var value))
+        {
+            var store = new ComponentStore<T>();
+            _componentStores.Add(typeof(T), store);
+            return store;
+        }
+
+        return (ComponentStore<T>)value;
     }
 
-    public void Dispose()
+    public void AddComponent<T>(WorldObject obj, T component) where T : unmanaged, IComponent
     {
-        Camera.Dispose();
+        GetStore<T>().Add(obj.Id, component);
+    }
+
+    public ref T GetComponent<T>(WorldObject obj) where T : unmanaged, IComponent
+    {
+        return ref GetStore<T>().Get(obj.Id);
+    }
+
+    public IEnumerable<WorldObject> GetEntitiesWith<T>() where T : struct, IComponent
+    {
+        foreach (var id in GetStore<T>().Entities)
+            yield return new WorldObject(id);
     }
 }

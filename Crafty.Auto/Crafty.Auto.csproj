@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	  
+	<PackageId>Crafty.Auto</PackageId>
+	<Version>0.1.0-ea</Version>
+
+	<Authors>Crafty</Authors>
+	<Description>Reusable automation and infrastructure utilities for Crafty.</Description>
+
+	<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	<PackageTags>crafty;utilities;infrastructure</PackageTags>
+
+	<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+</Project>

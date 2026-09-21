@@ -1,19 +1,13 @@
 ﻿using CraftyNative.ThreeD;
-using CraftyNative.TwoD;
-using CraftyNative.TwoD.Animations;
-using CraftyNative.TwoD.Controls;
 using Silk.NET.Input;
+using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using System.Numerics;
 
 namespace CraftyNative;
 
-public abstract class Window
+public abstract class Window : IDisposable
 {
-    public GraphicsMode GraphicsMode { get; set; }
-
-    public UIElement Root { get; set; } = null!;
-
     private string _title = "Window";
     public string Title
     {
@@ -21,14 +15,15 @@ public abstract class Window
         set
         {
             _title = value;
-            _window?.Title = value;
+            NativeWindow?.Title = value;
         }
     }
 
     public event EventHandler? Activated;
-
-    private IInputContext _input = null!;
-    private IWindow _window = null!;
+    public event EventHandler<bool>? Focused;
+    public InputManager InputManager { get; private set; } = null!;
+    public IWindow NativeWindow { get; private set; } = null!;
+    public Vector2D<int> Size { get; private set; } = new(1280, 720);
 
     public void Initialize()
     {
@@ -38,26 +33,68 @@ public abstract class Window
         options.Size = new(1280, 720);
         options.VSync = false;
 
-        _window = Silk.NET.Windowing.Window.Create(options);
+        NativeWindow = Silk.NET.Windowing.Window.Create(options);
 
-        _window.Load += OnWindowLoad;
-        _window.Render += OnWindowRender;
-        _window.Resize += OnWindowResize;
+        NativeWindow.Load += OnWindowLoad;
+        NativeWindow.Render += OnWindowRender;
+        NativeWindow.Resize += OnWindowResize;
+        NativeWindow.FocusChanged += NativeWindow_FocusChanged;
+    }
+
+    private void NativeWindow_FocusChanged(bool focused)
+    {
+        Focused?.Invoke(this, focused);
+    }
+
+    protected virtual void OnResize(Vector2D<int> size)
+    {
+    }
+
+    public void Resize(Vector2D<int> size)
+    {
+        Size = size;
+        NativeWindow.Size = size;
+        OnResize(size);
+    }
+
+    protected virtual void OnMouseMove(Vector2 position)
+    {
+    }
+
+    protected virtual void OnKeyDown(Key key)
+    {
+    }
+    protected virtual void OnKeyUp(Key key)
+    {
     }
 
     private void OnWindowLoad()
     {
-        _input = _window.CreateInput();
-        foreach (var mouse in _input.Mice)
-        {
-            mouse.MouseDown += OnMouseDown;
-            mouse.MouseMove += OnMouseMove;
-            mouse.MouseUp += OnMouseUp;
-        }
-        CraftyNative2D.Initialize(_window);
-        CraftyNative3D.Initialize(_window);
+        InputManager = new(NativeWindow.CreateInput());
+
+        SystemAPI.Input = InputManager;
+        SystemAPI.WindowSize = new(Size.X, Size.Y);
+
+        InputManager.KeyDown += InputManager_KeyDown;
+        InputManager.KeyUp += InputManager_KeyUp;
+        InputManager.MouseMove += InputManager_MouseMove;
 
         Activated?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void InputManager_MouseMove(Vector2 position)
+    {
+        OnMouseMove(position);
+    }
+
+    private void InputManager_KeyUp(Key key)
+    {
+        OnKeyUp(key);
+    }
+
+    private void InputManager_KeyDown(Key key)
+    {
+        OnKeyDown(key);
     }
 
     private void OnWindowRender(double deltaTime)
@@ -69,91 +106,29 @@ public abstract class Window
     /// Override for 3D or custom rendering
     /// </summary>
     /// <param name="deltaTime"></param>
-    public virtual void Render(double deltaTime)
+    protected virtual void Render(double deltaTime)
     {
-        CraftyNative2D.Device.BeginDraw();
-
-        foreach (var animation in AnimationsManager.Animations)
-            animation.Tick(deltaTime);
-
-        Root?.Render(deltaTime);
-
-        CraftyNative2D.Device.EndDraw();
     }
 
-    private void OnWindowResize(Silk.NET.Maths.Vector2D<int> obj)
+    private void OnWindowResize(Silk.NET.Maths.Vector2D<int> size)
     {
-        ResizeDpiScale(obj.X, obj.Y);
+        Size = size;
+        OnResize(size);
+        ResizeDpiScale(size.X, size.Y);
     }
 
     public void Activate()
     {
-        _window.Run();
+        NativeWindow.Run();
     }
 
     private void ResizeDpiScale(int width, int height)
     {
-        if (GraphicsMode is GraphicsMode.TwoD or GraphicsMode.TwoDAndThreeD)
-        {
-            CraftyNative2D.ResizeFrameBuffer((uint)width, (uint)height);
-            CraftyNative2D.UpdateDpi();
-            Root.Layout(new(0, 0, CraftyNative2D.Height, CraftyNative2D.Width));
-        }
-
-        if (GraphicsMode is GraphicsMode.ThreeD or GraphicsMode.TwoDAndThreeD)
-        {
-            // 3D
-        }
     }
 
-    private UIElement? _hoveredElement;
-    private UIElement? _pressedElement;
-
-    private void OnMouseDown(IMouse mouse, MouseButton button)
+    public virtual void Dispose()
     {
-        if (button != MouseButton.Left)
-            return;
-
-        _pressedElement = _hoveredElement;
-        _pressedElement?.RaisePressed();
-    }
-
-    private void OnMouseUp(IMouse mouse, MouseButton button)
-    {
-        if (button != MouseButton.Left)
-            return;
-
-        _pressedElement?.RaiseReleased();
-        _pressedElement = null;
-    }
-
-    private void OnMouseMove(IMouse mouse, Vector2 position)
-    {
-        var x = position.X / CraftyNative2D.DpiScaleX;
-        var y = position.Y / CraftyNative2D.DpiScaleY;
-
-        var element = Root.FindHit(x, y);
-
-        if (element == _hoveredElement)
-            return;
-
-        _hoveredElement?.RaiseExit();
-
-        _hoveredElement = element;
-
-        _hoveredElement?.RaiseEnter();
-    }
-
-    public void Dispose()
-    {
-        foreach (var mouse in _input.Mice)
-        {
-            mouse.MouseDown -= OnMouseDown;
-            mouse.MouseMove -= OnMouseMove;
-            mouse.MouseUp -= OnMouseUp;
-        }
-
-        CraftyNative2D.Dispose();
+        InputManager?.Dispose();
         CraftyNative3D.Dispose();
     }
 }
