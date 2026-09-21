@@ -28,7 +28,7 @@ GPU
 
 Each layer has a specific responsibility.
 
-### (Vulcan)[boba1010/Vulcan]
+### [Vulcan](github.com/boba1010/Vulcan)
 
 **Vulcan** is the low-level graphics foundation.
 
