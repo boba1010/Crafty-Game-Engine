@@ -31,7 +31,7 @@ public abstract class Window : IDisposable
         options.Title = "Window";
         options.API = GraphicsAPI.None;
         options.Size = new(1280, 720);
-        options.VSync = false;
+        options.VSync = true;
 
         NativeWindow = Silk.NET.Windowing.Window.Create(options);
 

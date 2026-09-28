@@ -3,14 +3,20 @@ using Crafty.SDK.World;
 
 namespace Crafty.ChunkGeneration.World;
 
-internal sealed class WorldGenerator(ulong seed)
+internal sealed class WorldGenerator
 {
     private const int WorldSize = 10;
-    private readonly WorldIOManager _worldIOManager = new(@".\saves\silly");
+    private readonly ulong _seed;
+
+    public WorldGenerator(ulong seed)
+    {
+        _seed = seed;
+        WorldIOManager.WorldPath = @".\saves\silly";
+    }
 
     public World GenerateWorld()
     {
-        var world = new World() { Seed = seed, Name = "silly", };
+        var world = new World() { Seed = _seed, Name = "silly", };
 
         Directory.CreateDirectory(Path.Combine(@$".\saves\{world.Name}", "chunks"));
 
@@ -18,11 +24,11 @@ internal sealed class WorldGenerator(ulong seed)
         {
             for (int z = 0; z < WorldSize; z++)
             {
-                _worldIOManager.SaveChunk((Chunk)GenerateChunk(x, z));
+                WorldIOManager.SaveChunk((Chunk)GenerateChunk(x, z));
             }
         });
 
-        _worldIOManager.SaveWorld(world);
+        WorldIOManager.SaveWorld(world);
 
         return world;
     }
@@ -31,7 +37,7 @@ internal sealed class WorldGenerator(ulong seed)
     {
         var generator = new ChunkGenerator();
 
-        var context = new ChunkGenerationContext(seed, x, z, 0, 400);
+        var context = new ChunkGenerationContext(_seed, x, z, 0, 416);
 
         return generator.Generate(in context);
     }

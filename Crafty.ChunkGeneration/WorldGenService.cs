@@ -3,8 +3,13 @@ using Crafty.ChunkGeneration.World;
 
 namespace Crafty.ChunkGeneration;
 
-public class WorldGenService(WorldIOManager worldIOManager) : IWorldGenService
+public class WorldGenService : IWorldGenService
 {
+    public WorldGenService(string worldPath)
+    {
+        WorldIOManager.WorldPath = worldPath;
+    }
+
     public World.World GenerateWorld(ulong seed)
     {
         WorldGenerator worldGenerator = new(seed);
@@ -13,8 +18,8 @@ public class WorldGenService(WorldIOManager worldIOManager) : IWorldGenService
 
     public Chunk LoadChunk(int x, int z)
     {
-        return worldIOManager.LoadChunk(x, z);
+        return WorldIOManager.LoadChunk(x, z);
     }
 
-    public World.World LoadWorld(string path) => worldIOManager.LoadWorld(path);
+    public World.World LoadWorld(string path) => WorldIOManager.LoadWorld(path);
 }

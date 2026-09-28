@@ -11,7 +11,7 @@ public sealed class Chunk : IChunk
 
     public BlockPlacement GetBlock(int x, int y, int z)
     {
-        int index = x * 12800 + z * 400 + y;
+        int index = x * (Size * 416) + z * 416 + y;
 
         try
         {
@@ -21,19 +21,12 @@ public sealed class Chunk : IChunk
         {
             throw new Exception($"Blocks: {Blocks.Count} | Index: {index}");
         }
-
-        //return Blocks.FirstOrDefault(b => b.X == x && b.Y == y && b.Z == z);
     }
 
-    public int GetHeight(int x, int z)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void SetBiome(int x, int z, BiomePlacement biome)
-    {
-        throw new NotImplementedException();
-    }
+    //public int GetHeight(int x, int z)
+    //{
+    //    throw new NotImplementedException();
+    //}
 
     public void SetBlock(BlockPlacement block)
     {

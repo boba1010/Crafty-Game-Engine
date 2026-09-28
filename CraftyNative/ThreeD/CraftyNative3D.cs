@@ -29,6 +29,7 @@ internal unsafe static class CraftyNative3D
     private static IBlendState _blendState = null!;
     private static IBuffer _constantBuffer = null!;
     private static ITexture _depthTexture = null!;
+    private static ISampler _sampler = null!;
 
     private static GPUMesh GetOrCreateMesh(Mesh mesh)
     {
@@ -63,6 +64,38 @@ internal unsafe static class CraftyNative3D
         return gpuMesh;
     }
 
+    public static Texture CreateTexture(ImageData image)
+    {
+        var texture = Device.CreateTexture(new TextureDescription
+        {
+            Width = image.Width,
+            Height = image.Height,
+            Depth = 1,
+            MipLevels = 1,
+            ArrayLayers = 1,
+            Format = TextureFormat.R8G8B8A8Unorm,
+            Usage = TextureUsage.Sampled,
+            Type = TextureType.Texture2D,
+            Samples = SampleCount.X1
+        });
+
+        var rowPitch = image.Width * 4;
+
+        texture.Upload(image.Pixels, rowPitch);
+
+        return new Texture(texture);
+    }
+
+    public static Material CreateMaterial(ImageData atlas)
+    {
+        var atlasTexture = CreateTexture(atlas);
+
+        return new Material
+        {
+            Atlas = atlasTexture
+        };
+    }
+
     public static void Initialize(IWindow window)
     {
         Window = window;
@@ -75,11 +108,13 @@ internal unsafe static class CraftyNative3D
         struct VSInput
         {
             float3 Position : POSITION;
+            float2 UV : TEXCOORD0;
         };
 
         struct VSOutput
         {
             float4 Position : SV_Position;
+            float2 UV : TEXCOORD0;
         };
 
         cbuffer Transform : register(b0)
@@ -91,20 +126,22 @@ internal unsafe static class CraftyNative3D
         {
             VSOutput output;
             output.Position = mul(float4(input.Position, 1.0), MVP);
+            output.UV = input.UV;
             return output;
         }
 
+        Texture2D Texture : register(t0);
+        SamplerState Sampler : register(s0);
+
         float4 PSMain(VSOutput input) : SV_Target
         {
-            return float4(1.0, 0.0, 0.0, 1.0);
+            return Texture.Sample(Sampler, input.UV);
         }
         """;
 
-        var vertexShaderCode =
-            Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
+        var vertexShaderCode = Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
 
-        var fragmentShaderCode =
-            Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
+        var fragmentShaderCode = Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
 
         _vertexShader = Device.CreateShader(new()
         {
@@ -131,6 +168,13 @@ internal unsafe static class CraftyNative3D
                     Location = 0,
                     Format = TextureFormat.R32G32B32Float,
                     Offset = 0
+                },
+                new()
+                {
+                    Semantic = "TEXCOORD",
+                    Location = 0,
+                    Format = TextureFormat.R32G32Float,
+                    Offset = 12
                 }
             }
         });
@@ -171,6 +215,19 @@ internal unsafe static class CraftyNative3D
             Size = 64,
             Usage = BufferUsage.Uniform,
             MemoryUsage = MemoryUsage.Upload
+        });
+
+        _sampler = Device.CreateSampler(new()
+        {
+            MinFilter = Filter.Nearest,
+            MagFilter = Filter.Nearest,
+            MipmapFilter = Filter.Nearest,
+            AddressU = AddressMode.Repeat,
+            AddressV = AddressMode.Repeat,
+            AddressW = AddressMode.Repeat,
+            MipLodBias = 0,
+            MinLod = 0,
+            MaxLod = float.MaxValue
         });
 
         _queue = Device.CreateCommandQueue();
@@ -255,21 +312,47 @@ internal unsafe static class CraftyNative3D
 
         var forward = Vector3.Transform(
             -Vector3.UnitZ,
-            Quaternion.CreateFromYawPitchRoll(
-                cameraTransform.Rotation.Y,
-                cameraTransform.Rotation.X,
-                0f));
+            Quaternion.CreateFromYawPitchRoll(cameraTransform.Rotation.Y, cameraTransform.Rotation.X, 0f));
 
-        var view = Matrix4x4.CreateLookAt(
-            cameraTransform.Position,
-            cameraTransform.Position + forward,
-            Vector3.UnitY);
+        var view = Matrix4x4.CreateLookAt(cameraTransform.Position, cameraTransform.Position + forward, Vector3.UnitY);
 
-        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
-            camera.FieldOfView,
-            size.X / (float)size.Y,
-            camera.NearPlane,
-            camera.FarPlane);
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(camera.FieldOfView, size.X / (float)size.Y, camera.NearPlane, camera.FarPlane);
+
+        foreach (var section in WorldMeshManager.GetVisibleSections(cameraTransform.Position))
+        {
+            var mesh = section.Mesh;
+
+            if (mesh.Vertices.Count <= 0 || mesh.Indices.Count <= 0)
+                continue;
+
+            var gpuMesh = GetOrCreateMesh(mesh);
+
+            var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
+
+            var mvp = model * view * projection;
+
+            var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
+
+            _constantBuffer.Upload(mvpData);
+
+            _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer, mesh.VertexStride);
+
+            _commandBuffer.SetUniformBuffer(_constantBuffer);
+
+            _commandBuffer.SetIndexBuffer(gpuMesh.IndexBuffer);
+
+            _commandBuffer.SetSampler(_sampler);
+
+            var material = mesh.Material;
+
+            if (material != null)
+            {
+                _commandBuffer.SetTexture(material.Atlas.Resource);
+                _commandBuffer.DrawIndexed((uint)mesh.Indices.Count, 1, 0);
+            }
+            else
+                _commandBuffer.DrawIndexed((uint)mesh.Indices.Count);
+        }
 
         foreach (var (objectId, renderable) in scene.Renderables)
         {
@@ -290,11 +373,19 @@ internal unsafe static class CraftyNative3D
 
             var gpuMesh = GetOrCreateMesh(renderable.Mesh);
 
-            _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer);
+            _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer, renderable.Mesh.VertexStride);
             _commandBuffer.SetIndexBuffer(gpuMesh.IndexBuffer);
             _commandBuffer.SetUniformBuffer(_constantBuffer);
+            _commandBuffer.SetSampler(_sampler);
 
-            _commandBuffer.DrawIndexed((uint)renderable.Mesh.Indices.Length);
+            var material = renderable.Mesh.Material;
+            if (material != null)
+            {
+                _commandBuffer.SetTexture(material.Atlas.Resource);
+                _commandBuffer.DrawIndexed((uint)renderable.Mesh.Indices.Count, 1, 0);
+            }
+            else
+                _commandBuffer.DrawIndexed((uint)renderable.Mesh.Indices.Count);
         }
 
         _commandBuffer.End();

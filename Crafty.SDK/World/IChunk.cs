@@ -7,6 +7,6 @@ public interface IChunk
 
     public BlockPlacement GetBlock(int x, int y, int z);
     public void SetBlock(BlockPlacement block);
-    int GetHeight(int x, int z);
-    void SetBiome(int x, int z, BiomePlacement biome);
+    //int GetHeight(int x, int z);
+    //void SetBiome(int x, int z, BiomePlacement biome);
 }

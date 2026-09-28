@@ -1,8 +1,77 @@
-﻿namespace Crafty.ChunkGeneration.World;
+﻿using Crafty.SDK.World;
+
+namespace Crafty.ChunkGeneration.World;
 
 public sealed class World
 {
     public string Name { get; set; } = null!;
     public string Directory { get; set; } = null!;
     public ulong Seed { get; set; }
+
+    private readonly Dictionary<(int X, int Z), IChunk> _chunks = [];
+
+    public IChunk? GetChunk(int x, int z)
+    {
+        return _chunks.GetValueOrDefault((x, z));
+    }
+
+    public void LoadChunk(IChunk chunk)
+    {
+        _chunks[(chunk.X, chunk.Z)] = chunk;
+    }
+
+    public void UnloadChunk(int x, int z)
+    {
+        _chunks.Remove((x, z));
+    }
+
+    public BlockPlacement GetBlock(int x, int y, int z)
+    {
+        int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
+        int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
+
+        if (localX < 0)
+        {
+            chunkX--;
+            localX += Chunk.Size;
+        }
+
+        if (localZ < 0)
+        {
+            chunkZ--;
+            localZ += Chunk.Size;
+        }
+
+        IChunk? chunk = GetChunk(chunkX, chunkZ);
+
+        if (chunk is null)
+            return default;
+
+        return chunk.GetBlock(localX, y, localZ);
+    }
+
+    public void SetBlock(int x, int y, int z, BlockPlacement block)
+    {
+        int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
+        int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
+
+        if (localX < 0)
+        {
+            chunkX--;
+            localX += Chunk.Size;
+        }
+
+        if (localZ < 0)
+        {
+            chunkZ--;
+            localZ += Chunk.Size;
+        }
+
+        IChunk? chunk = GetChunk(chunkX, chunkZ);
+
+        if (chunk is null)
+            return;
+
+        chunk.SetBlock(block);
+    }
 }

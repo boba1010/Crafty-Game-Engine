@@ -2,7 +2,6 @@
 
 public class Block
 {
-    public string Id { get; set; } = null!;
     public BlockProperties Properties { get; init; } = new();
     public BlockModel Model { get; init; } = BlockModel.Cube;
     public BlockStateDefinition? States { get; init; }

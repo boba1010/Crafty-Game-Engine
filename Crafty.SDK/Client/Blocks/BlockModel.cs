@@ -6,12 +6,12 @@ public sealed class BlockModel
     {
         Faces = 
         [
-            new(BlockFaceDirection.Top, "crafty:missing"),
-            new(BlockFaceDirection.Bottom, "crafty:missing"),
-            new(BlockFaceDirection.North, "crafty:missing"),
-            new(BlockFaceDirection.South, "crafty:missing"),
-            new(BlockFaceDirection.East, "crafty:missing"),
-            new(BlockFaceDirection.West, "crafty:missing"),
+            new(BlockFaceDirection.Top, "crafty.missing"),
+            new(BlockFaceDirection.Bottom, "crafty.missing"),
+            new(BlockFaceDirection.North, "crafty.missing"),
+            new(BlockFaceDirection.South, "crafty.missing"),
+            new(BlockFaceDirection.East, "crafty.missing"),
+            new(BlockFaceDirection.West, "crafty.missing"),
         ]
     };
 

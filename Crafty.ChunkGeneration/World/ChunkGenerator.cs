@@ -22,9 +22,9 @@ internal class ChunkGenerator : IChunkGenerator
                 {
                     ushort blockId = y switch
                     {
-                        GroundHeight => 1,
-                        _ when y < GroundHeight => 2,
                         _ when y < (GroundHeight - 3) => 3,
+                        _ when y < GroundHeight => 2,
+                        GroundHeight => 1,
                         _ => 0
                     };
 

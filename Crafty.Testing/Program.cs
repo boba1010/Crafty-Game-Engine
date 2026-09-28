@@ -17,18 +17,5 @@ internal class Program
         var genWorld = worldGenService.GenerateWorld(seed);
 
         Console.WriteLine($"{genWorld.Name} HAS FINISHED GENERATING");
-
-        Console.WriteLine("LOADING WORLD");
-
-        var world = worldGenService.LoadWorld(".\\saves\\silly\\silly.world");
-
-        Console.WriteLine($"{world.Name} HAS FINISHED LOADING");
-
-        Console.WriteLine("LOADING CHUNK");
-
-        var chunk = worldGenService.LoadChunk(0, 0);
-
-        foreach (var block in chunk.Blocks)
-            Console.Write($"{block.Id}");
     }
 }

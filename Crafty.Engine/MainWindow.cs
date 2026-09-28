@@ -1,35 +1,34 @@
 ﻿using Crafty.ChunkGeneration;
-using Crafty.ChunkGeneration.World;
+using Crafty.ChunkGeneration.IO;
+using Crafty.Engine.ChunkBuilding;
 using Crafty.Engine.Components;
 using Crafty.Engine.Systems;
 using CraftyNative;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Scenes;
+using CraftyNative.ThreeD.World;
 using System.Numerics;
 
 namespace Crafty.Engine;
 
 public sealed class MainWindow : Window
 {
-    public IWorldGenService WorldGenService { get; }
-    public ChunkMeshBuilder ChunkMeshBuilder { get; }
+    public MeshBuilder MeshBuilder { get; }
     public PlayerCameraSystem CameraSystem;
     
     private GameWorld _world = null!;
-    private Chunk _chunk = null!;
-    private Mesh _mesh = null!;
-    private WorldObject _chunkObject;
-    
     private bool _isPaused = true;
     
     public MainWindow()
     {
         Initialize();
 
-        WorldGenService = new WorldGenService(new(@".\saves\silly"));
+        ChunkLoader.WorldDirectory = "saves/silly";
+        ChunkLoader.WorldGenService = new WorldGenService(ChunkLoader.WorldDirectory);
+
         CameraSystem = new();
-        ChunkMeshBuilder = new();
+        MeshBuilder = new();
 
         Activated += Window_Activated;
         Focused += Window_Focused;
@@ -65,6 +64,8 @@ public sealed class MainWindow : Window
 
     private void Window_Activated(object? sender, EventArgs e)
     {
+        GameAPIs.Initialize();
+
         _world = new(this)
         {
             Scene = new()
@@ -74,7 +75,7 @@ public sealed class MainWindow : Window
 
         _world.Scene.AddComponent(camera, new Transform
         {
-            LocalPosition = new(0, 0, -3)
+            LocalPosition = new(0, 2, -3)
         });
         _world.Scene.AddComponent(camera, new Camera
         {
@@ -91,12 +92,31 @@ public sealed class MainWindow : Window
         _world.Scene.Systems.Add(CameraSystem);
         _world.Scene.Systems.Add(new PlayerMovementSystem());
 
-        _chunkObject = _world.Scene.CreateObject();
-        _world.Scene.AddComponent(_chunkObject, new Transform());
+        var chunks = ChunkLoader.Load(100);
+        var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
 
-        _chunk = WorldGenService.LoadChunk(0, 0);
-        _mesh = ChunkMeshBuilder.Build(_chunk);
-        _world.Scene.SetRenderable(_chunkObject, new(_mesh));
+        foreach (var chunk in chunks)
+            world.LoadChunk(chunk);
+
+        for (int i = 0; i < chunks.Length; i++)
+        {
+            var chunk = chunks[i];
+
+            for (int sectionY = 0; sectionY < SectionCoordinate.SectionsY; sectionY++)
+            {
+                for (int sectionZ = 0; sectionZ < 2; sectionZ++)
+                {
+                    for (int sectionX = 0; sectionX < 2; sectionX++)
+                    {
+                        var coordinate = new SectionCoordinate(chunk.X, chunk.Z, sectionX, sectionY, sectionZ);
+
+                        var sectionMesh = MeshBuilder.BuildSectionMesh(world, sectionX, sectionY, sectionZ, chunk.X, chunk.Z);
+
+                        WorldMeshManager.Add(new WorldMeshSection(coordinate, sectionMesh));
+                    }
+                }
+            }
+        }
     }
 
     protected override void Render(double deltaTime)
@@ -106,6 +126,7 @@ public sealed class MainWindow : Window
 
     public override void Dispose()
     {
+        WorldMeshManager.Dispose();
         _world?.Dispose();
         base.Dispose();
     }

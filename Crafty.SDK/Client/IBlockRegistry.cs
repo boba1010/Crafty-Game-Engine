@@ -4,7 +4,6 @@ namespace Crafty.SDK.Client;
 
 public interface IBlockRegistry
 {
-    ushort Register(Block block);
+    void Register(Block block);
     Block Get(ushort id);
-    bool TryGet(string id, out Block block);
 }

@@ -3,11 +3,13 @@ using System.IO.Compression;
 
 namespace Crafty.ChunkGeneration.IO;
 
-public struct WorldIOManager(string worldPath)
+public static class WorldIOManager
 {
-    public void SaveWorld(World.World world)
+    public static string WorldPath { get; set; } = null!;
+
+    public static void SaveWorld(World.World world)
     {
-        var path = Path.Combine(worldPath, $"{world.Name}.world");
+        var path = Path.Combine(WorldPath, $"{world.Name}.world");
 
         var fs = File.Open(path, FileMode.CreateNew);
         using var compression = new DeflateStream(fs, CompressionMode.Compress);
@@ -17,7 +19,7 @@ public struct WorldIOManager(string worldPath)
         writer.Write(world.Seed);
     }
 
-    public World.World LoadWorld(string path)
+    public static World.World LoadWorld(string path)
     {
         using var fs = File.OpenRead(path);
         using var compression = new DeflateStream(fs, CompressionMode.Decompress);
@@ -34,9 +36,9 @@ public struct WorldIOManager(string worldPath)
         };
     }
 
-    public void SaveChunk(Chunk chunk)
+    public static void SaveChunk(Chunk chunk)
     {
-        string path = Path.Combine(worldPath, "chunks", $"{chunk.X}_{chunk.Z}.chunk");
+        string path = Path.Combine(WorldPath, "chunks", $"{chunk.X}_{chunk.Z}.chunk");
 
         using var fs = File.Create(path);
         using var compression = new DeflateStream(fs, CompressionMode.Compress);
@@ -55,9 +57,9 @@ public struct WorldIOManager(string worldPath)
         }
     }
 
-    public Chunk LoadChunk(int x, int z)
+    public static Chunk LoadChunk(int x, int z)
     {
-        string path = Path.Combine(worldPath, "chunks", $"{x}_{z}.chunk");
+        string path = Path.Combine(WorldPath, "chunks", $"{x}_{z}.chunk");
         using var fs = File.OpenRead(path);
         using var compression = new DeflateStream(fs, CompressionMode.Decompress);
         using var reader = new BinaryReader(compression);
