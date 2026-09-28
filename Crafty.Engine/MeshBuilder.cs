@@ -1,19 +1,16 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.Engine.ChunkBuilding;
 using Crafty.SDK.Client.Blocks;
-using Crafty.SDK.World;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.World;
-using Silk.NET.SDL;
 
 namespace Crafty.Engine;
 
-public sealed class MeshBuilder
-{
-    private readonly List<float> _vertices = [];
-    private readonly List<uint> _indices = [];
 
+
+public static class MeshBuilder
+{
     private enum Face
     {
         Left,
@@ -24,23 +21,20 @@ public sealed class MeshBuilder
         Back
     }
 
-    public Mesh BuildBlockMesh()
+    private struct MeshData
     {
-        AddFace(0, 0, 0, Face.Left);
-        AddFace(0, 0, 0, Face.Right);
-        AddFace(0, 0, 0, Face.Bottom);
-        AddFace(0, 0, 0, Face.Top);
-        AddFace(0, 0, 0, Face.Front);
-        AddFace(0, 0, 0, Face.Back);
+        public List<float> Vertices;
+        public List<uint> Indices;
 
-        return new Mesh([.. _vertices], [.. _indices], vertexStride: 20);
+        public MeshData()
+        {
+            Vertices = [];
+            Indices = [];
+        }
     }
 
-    public Mesh BuildSectionMesh(World world, int sectionX, int sectionY, int sectionZ, int chunkX, int chunkZ)
+    public static Mesh BuildSectionMesh(World world, int sectionX, int sectionY, int sectionZ, int chunkX, int chunkZ)
     {
-        _vertices.Clear();
-        _indices.Clear();
-
         int startX = chunkX * Chunk.Size + sectionX * SectionCoordinate.SectionSize;
 
         int startY = sectionY * SectionCoordinate.SectionSize;
@@ -75,6 +69,8 @@ public sealed class MeshBuilder
 
         var atlas = ChunkTextureAtlasBuilder.Build(textures, 32);
 
+        var mesh = new MeshData();
+
         for (var x = startX; x < endX; x++)
         {
             for (var z = startZ; z < endZ; z++)
@@ -93,159 +89,106 @@ public sealed class MeshBuilder
                     int localZ = z - startZ;
 
                     if (world.GetBlock(x - 1, y, z).Id == 0)
-                        AddBlockFace(localX, localY, localZ, Face.Left, model, atlas);
+                        AddBlockFace(ref mesh, localX, localY, localZ, Face.Left, model, atlas);
 
                     if (world.GetBlock(x + 1, y, z).Id == 0)
-                        AddBlockFace(localX, localY, localZ, Face.Right, model, atlas);
+                        AddBlockFace(ref mesh, localX, localY, localZ, Face.Right, model, atlas);
 
                     if (y == 0 || world.GetBlock(x, y - 1, z).Id == 0)
-                        AddBlockFace(localX, localY, localZ, Face.Bottom, model, atlas);
+                        AddBlockFace(ref mesh, localX, localY, localZ, Face.Bottom, model, atlas);
 
                     if (world.GetBlock(x, y + 1, z).Id == 0)
-                        AddBlockFace(localX, localY, localZ, Face.Top, model, atlas);
+                        AddBlockFace(ref mesh, localX, localY, localZ, Face.Top, model, atlas);
 
                     if (world.GetBlock(x, y, z - 1).Id == 0)
-                        AddBlockFace(localX, localY, localZ, Face.Front, model, atlas);
+                        AddBlockFace(ref mesh, localX, localY, localZ, Face.Front, model, atlas);
 
                     if (world.GetBlock(x, y, z + 1).Id == 0)
-                        AddBlockFace(localX, localY, localZ, Face.Back, model, atlas);
+                        AddBlockFace(ref mesh, localX, localY, localZ, Face.Back, model, atlas);
                 }
             }
         }
 
-        return new Mesh([.. _vertices], [.. _indices], material: Material.Create(atlas.Image), vertexStride: 20);
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
     }
 
-    private void AddBlockFace(int x, int y, int z, Face face, BlockModel model, ChunkTextureAtlas atlas)
+    private static void AddBlockFace(ref MeshData mesh, int x, int y, int z, Face face, BlockModel model, ChunkTextureAtlas atlas)
     {
         var direction = ToBlockFaceDirection(face);
         var modelFace = GetModelFace(model, direction);
         var region = atlas.Get(modelFace.Texture);
 
-        AddFace(x, y, z, face, region);
+        AddFace(x, y, z, face, region, ref mesh);
     }
 
-    private void AddFace(int x, int y, int z, Face face)
+    private static void AddFace(int x, int y, int z, Face face, AtlasRegion region, ref MeshData mesh)
     {
-        var i = (uint)(_vertices.Count / 5);
+        var indices = mesh.Indices;
+
+        var i = (uint)(mesh.Vertices.Count / 5);
 
         switch (face)
         {
             case Face.Left:
-                AddVertex(x, y, z, 0, 1);
-                AddVertex(x, y + 1, z, 1, 1);
-                AddVertex(x, y + 1, z + 1, 1, 0);
-                AddVertex(x, y, z + 1, 0, 0);
+                AddVertex(ref mesh, x, y, z, U(1, region), V(1, region));
+                AddVertex(ref mesh, x, y + 1, z, U(1, region), V(0, region));
+                AddVertex(ref mesh, x, y + 1, z + 1, U(0, region), V(0, region));
+                AddVertex(ref mesh, x, y, z + 1, U(0, region), V(1, region));
                 break;
 
             case Face.Right:
-                AddVertex(x + 1, y, z + 1, 0, 1);
-                AddVertex(x + 1, y + 1, z + 1, 1, 1);
-                AddVertex(x + 1, y + 1, z, 1, 0);
-                AddVertex(x + 1, y, z, 0, 0);
+                AddVertex(ref mesh, x + 1, y, z + 1, U(1, region), V(1, region));
+                AddVertex(ref mesh, x + 1, y + 1, z + 1, U(1, region), V(0, region));
+                AddVertex(ref mesh, x + 1, y + 1, z, U(0, region), V(0, region));
+                AddVertex(ref mesh, x + 1, y, z, U(0, region), V(1, region));
                 break;
 
             case Face.Bottom:
-                AddVertex(x, y, z + 1, 0, 1);
-                AddVertex(x, y, z, 1, 1);
-                AddVertex(x + 1, y, z, 1, 0);
-                AddVertex(x + 1, y, z + 1, 0, 0);
+                AddVertex(ref mesh, x, y, z + 1, U(0, region), V(1, region));
+                AddVertex(ref mesh, x, y, z, U(1, region), V(1, region));
+                AddVertex(ref mesh, x + 1, y, z, U(1, region), V(0, region));
+                AddVertex(ref mesh, x + 1, y, z + 1, U(0, region), V(0, region));
                 break;
 
             case Face.Top:
-                AddVertex(x, y + 1, z, 0, 1);
-                AddVertex(x, y + 1, z + 1, 1, 1);
-                AddVertex(x + 1, y + 1, z + 1, 1, 0);
-                AddVertex(x + 1, y + 1, z, 0, 0);
+                AddVertex(ref mesh, x, y + 1, z, U(0, region), V(1, region));
+                AddVertex(ref mesh, x, y + 1, z + 1, U(1, region), V(1, region));
+                AddVertex(ref mesh, x + 1, y + 1, z + 1, U(1, region), V(0, region));
+                AddVertex(ref mesh, x + 1, y + 1, z, U(0, region), V(0, region));
                 break;
 
             case Face.Front:
-                AddVertex(x + 1, y, z, 0, 1);
-                AddVertex(x + 1, y + 1, z, 1, 1);
-                AddVertex(x, y + 1, z, 1, 0);
-                AddVertex(x, y, z, 0, 0);
+                AddVertex(ref mesh, x + 1, y, z, U(1, region), V(1, region));
+                AddVertex(ref mesh, x + 1, y + 1, z, U(1, region), V(0, region));
+                AddVertex(ref mesh, x, y + 1, z, U(0, region), V(0, region));
+                AddVertex(ref mesh, x, y, z, U(0, region), V(1, region));
                 break;
 
             case Face.Back:
-                AddVertex(x, y, z + 1, 0, 1);
-                AddVertex(x, y + 1, z + 1, 1, 1);
-                AddVertex(x + 1, y + 1, z + 1, 1, 0);
-                AddVertex(x + 1, y, z + 1, 0, 0);
+                AddVertex(ref mesh, x, y, z + 1, U(1, region), V(1, region));
+                AddVertex(ref mesh, x, y + 1, z + 1, U(1, region), V(0, region));
+                AddVertex(ref mesh, x + 1, y + 1, z + 1, U(0, region), V(0, region));
+                AddVertex(ref mesh, x + 1, y, z + 1, U(0, region), V(1, region));
                 break;
         }
 
-        _indices.Add(i);
-        _indices.Add(i + 1);
-        _indices.Add(i + 2);
-        _indices.Add(i);
-        _indices.Add(i + 2);
-        _indices.Add(i + 3);
+        indices.Add(i);
+        indices.Add(i + 1);
+        indices.Add(i + 2);
+        indices.Add(i);
+        indices.Add(i + 2);
+        indices.Add(i + 3);
     }
 
-    private void AddFace(int x, int y, int z, Face face, AtlasRegion region)
+    private static void AddVertex(ref MeshData mesh, float x, float y, float z, float u, float v)
     {
-        var i = (uint)(_vertices.Count / 5);
+        var vertices = mesh.Vertices;
 
-        switch (face)
-        {
-            case Face.Left:
-                AddVertex(x, y, z, U(1, region), V(1, region));
-                AddVertex(x, y + 1, z, U(1, region), V(0, region));
-                AddVertex(x, y + 1, z + 1, U(0, region), V(0, region));
-                AddVertex(x, y, z + 1, U(0, region), V(1, region));
-                break;
-
-            case Face.Right:
-                AddVertex(x + 1, y, z + 1, U(1, region), V(1, region));
-                AddVertex(x + 1, y + 1, z + 1, U(1, region), V(0, region));
-                AddVertex(x + 1, y + 1, z, U(0, region), V(0, region));
-                AddVertex(x + 1, y, z, U(0, region), V(1, region));
-                break;
-
-            case Face.Bottom:
-                AddVertex(x, y, z + 1, U(0, region), V(1, region));
-                AddVertex(x, y, z, U(1, region), V(1, region));
-                AddVertex(x + 1, y, z, U(1, region), V(0, region));
-                AddVertex(x + 1, y, z + 1, U(0, region), V(0, region));
-                break;
-
-            case Face.Top:
-                AddVertex(x, y + 1, z, U(0, region), V(1, region));
-                AddVertex(x, y + 1, z + 1, U(1, region), V(1, region));
-                AddVertex(x + 1, y + 1, z + 1, U(1, region), V(0, region));
-                AddVertex(x + 1, y + 1, z, U(0, region), V(0, region));
-                break;
-
-            case Face.Front:
-                AddVertex(x + 1, y, z, U(1, region), V(1, region));
-                AddVertex(x + 1, y + 1, z, U(1, region), V(0, region));
-                AddVertex(x, y + 1, z, U(0, region), V(0, region));
-                AddVertex(x, y, z, U(0, region), V(1, region));
-                break;
-
-            case Face.Back:
-                AddVertex(x, y, z + 1, U(1, region), V(1, region));
-                AddVertex(x, y + 1, z + 1, U(1, region), V(0, region));
-                AddVertex(x + 1, y + 1, z + 1, U(0, region), V(0, region));
-                AddVertex(x + 1, y, z + 1, U(0, region), V(1, region));
-                break;
-        }
-
-        _indices.Add(i);
-        _indices.Add(i + 1);
-        _indices.Add(i + 2);
-        _indices.Add(i);
-        _indices.Add(i + 2);
-        _indices.Add(i + 3);
-    }
-
-    private void AddVertex(float x, float y, float z, float u, float v)
-    {
-        _vertices.Add(x);
-        _vertices.Add(y);
-        _vertices.Add(z);
-        _vertices.Add(u);
-        _vertices.Add(v);
+        vertices.Add(x);
+        vertices.Add(y);
+        vertices.Add(z);
+        vertices.Add(u);
+        vertices.Add(v);
     }
 
     private static float U(float u, AtlasRegion region)

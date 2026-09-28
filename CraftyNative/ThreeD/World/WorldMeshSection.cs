@@ -2,7 +2,7 @@
 
 namespace CraftyNative.ThreeD.World;
 
-public sealed class WorldMeshSection(SectionCoordinate coordinate, Mesh mesh, BoundingBox? bounds = null) : IDisposable
+public sealed class WorldMeshSection(SectionCoordinate coordinate, Mesh mesh, BoundingBox? bounds = null)
 {
     public SectionCoordinate Coordinate { get; } = coordinate;
 
@@ -21,10 +21,5 @@ public sealed class WorldMeshSection(SectionCoordinate coordinate, Mesh mesh, Bo
     public void MarkDirty()
     {
         IsDirty = true;
-    }
-
-    public void Dispose()
-    {
-        Mesh?.Dispose();
     }
 }

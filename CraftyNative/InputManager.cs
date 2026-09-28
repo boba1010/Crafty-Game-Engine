@@ -67,7 +67,7 @@ public sealed class InputManager : IDisposable
         KeyDown?.Invoke((Key)arg2);
     }
 
-    public bool IsKeyDown(Key key) 
+    public bool IsKeyPressed(Key key) 
     {
         return _keyboard.IsKeyPressed((Silk.NET.Input.Key)key);
     }

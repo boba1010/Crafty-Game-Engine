@@ -325,33 +325,9 @@ internal unsafe static class CraftyNative3D
             if (mesh.Vertices.Count <= 0 || mesh.Indices.Count <= 0)
                 continue;
 
-            var gpuMesh = GetOrCreateMesh(mesh);
-
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
 
-            var mvp = model * view * projection;
-
-            var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
-
-            _constantBuffer.Upload(mvpData);
-
-            _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer, mesh.VertexStride);
-
-            _commandBuffer.SetUniformBuffer(_constantBuffer);
-
-            _commandBuffer.SetIndexBuffer(gpuMesh.IndexBuffer);
-
-            _commandBuffer.SetSampler(_sampler);
-
-            var material = mesh.Material;
-
-            if (material != null)
-            {
-                _commandBuffer.SetTexture(material.Atlas.Resource);
-                _commandBuffer.DrawIndexed((uint)mesh.Indices.Count, 1, 0);
-            }
-            else
-                _commandBuffer.DrawIndexed((uint)mesh.Indices.Count);
+            DrawMesh(mesh, model * view * projection, $"{section.Coordinate.SectionX}_{section.Coordinate.SectionY}_{section.Coordinate.SectionZ}");
         }
 
         foreach (var (objectId, renderable) in scene.Renderables)
@@ -365,32 +341,45 @@ internal unsafe static class CraftyNative3D
                 Matrix4x4.CreateRotationZ(transform.Rotation.Z) *
                 Matrix4x4.CreateTranslation(transform.Position);
 
-            var mvp = model * view * projection;
-
-            var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
-
-            _constantBuffer.Upload(mvpData);
-
-            var gpuMesh = GetOrCreateMesh(renderable.Mesh);
-
-            _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer, renderable.Mesh.VertexStride);
-            _commandBuffer.SetIndexBuffer(gpuMesh.IndexBuffer);
-            _commandBuffer.SetUniformBuffer(_constantBuffer);
-            _commandBuffer.SetSampler(_sampler);
-
-            var material = renderable.Mesh.Material;
-            if (material != null)
-            {
-                _commandBuffer.SetTexture(material.Atlas.Resource);
-                _commandBuffer.DrawIndexed((uint)renderable.Mesh.Indices.Count, 1, 0);
-            }
-            else
-                _commandBuffer.DrawIndexed((uint)renderable.Mesh.Indices.Count);
+            DrawMesh(renderable.Mesh, model * view * projection, objectId.ToString());
         }
 
         _commandBuffer.End();
 
         _swapchain.Present();
+    }
+
+    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, string materialId)
+    {
+        var gpuMesh = GetOrCreateMesh(mesh);
+
+        var mvpData = MemoryMarshal.AsBytes(
+            MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
+
+        _constantBuffer.Upload(mvpData);
+
+        _commandBuffer.SetVertexBuffer(
+            gpuMesh.VertexBuffer,
+            mesh.VertexStride);
+
+        _commandBuffer.SetIndexBuffer(gpuMesh.IndexBuffer);
+        _commandBuffer.SetUniformBuffer(_constantBuffer);
+        _commandBuffer.SetSampler(_sampler);
+
+        var texture = mesh.Texture;
+
+        if (texture is null)
+        {
+            _commandBuffer.DrawIndexed((uint)mesh.Indices.Count);
+            return;
+        }
+
+        var key = materialId;
+
+        var material = NativeMaterialsManager.Get(key, texture.Value);
+
+        _commandBuffer.SetTexture(material.Atlas.Resource);
+        _commandBuffer.DrawIndexed((uint)mesh.Indices.Count, 1, 0);
     }
 
     public static void Dispose()

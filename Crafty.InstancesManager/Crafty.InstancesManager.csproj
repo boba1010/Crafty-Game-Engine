@@ -21,8 +21,4 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Crafty.Auto\Crafty.Auto.csproj" />
-  </ItemGroup>
-
 </Project>

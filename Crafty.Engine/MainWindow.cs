@@ -1,10 +1,12 @@
 ﻿using Crafty.ChunkGeneration;
 using Crafty.ChunkGeneration.IO;
+using Crafty.ChunkGeneration.World;
 using Crafty.Engine.ChunkBuilding;
 using Crafty.Engine.Components;
 using Crafty.Engine.Systems;
 using CraftyNative;
 using CraftyNative.ThreeD;
+using CraftyNative.ThreeD.ECS;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Scenes;
 using CraftyNative.ThreeD.World;
@@ -14,7 +16,6 @@ namespace Crafty.Engine;
 
 public sealed class MainWindow : Window
 {
-    public MeshBuilder MeshBuilder { get; }
     public PlayerCameraSystem CameraSystem;
     
     private GameWorld _world = null!;
@@ -25,10 +26,10 @@ public sealed class MainWindow : Window
         Initialize();
 
         ChunkLoader.WorldDirectory = "saves/silly";
-        ChunkLoader.WorldGenService = new WorldGenService(ChunkLoader.WorldDirectory);
+        var seed = WorldSeed.Generate();
+        ChunkLoader.WorldGenService = new WorldGenService(ChunkLoader.WorldDirectory, seed);
 
         CameraSystem = new();
-        MeshBuilder = new();
 
         Activated += Window_Activated;
         Focused += Window_Focused;
@@ -92,31 +93,10 @@ public sealed class MainWindow : Window
         _world.Scene.Systems.Add(CameraSystem);
         _world.Scene.Systems.Add(new PlayerMovementSystem());
 
-        var chunks = ChunkLoader.Load(100);
         var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
+        _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
 
-        foreach (var chunk in chunks)
-            world.LoadChunk(chunk);
-
-        for (int i = 0; i < chunks.Length; i++)
-        {
-            var chunk = chunks[i];
-
-            for (int sectionY = 0; sectionY < SectionCoordinate.SectionsY; sectionY++)
-            {
-                for (int sectionZ = 0; sectionZ < 2; sectionZ++)
-                {
-                    for (int sectionX = 0; sectionX < 2; sectionX++)
-                    {
-                        var coordinate = new SectionCoordinate(chunk.X, chunk.Z, sectionX, sectionY, sectionZ);
-
-                        var sectionMesh = MeshBuilder.BuildSectionMesh(world, sectionX, sectionY, sectionZ, chunk.X, chunk.Z);
-
-                        WorldMeshManager.Add(new WorldMeshSection(coordinate, sectionMesh));
-                    }
-                }
-            }
-        }
+        SystemAPI.JobSystem = new JobSystem();
     }
 
     protected override void Render(double deltaTime)
@@ -126,7 +106,7 @@ public sealed class MainWindow : Window
 
     public override void Dispose()
     {
-        WorldMeshManager.Dispose();
+        SystemAPI.JobSystem.Dispose();
         _world?.Dispose();
         base.Dispose();
     }

@@ -33,7 +33,7 @@ internal sealed class WorldGenerator
         return world;
     }
 
-    private IChunk GenerateChunk(int x, int z)
+    public IChunk GenerateChunk(int x, int z)
     {
         var generator = new ChunkGenerator();
 

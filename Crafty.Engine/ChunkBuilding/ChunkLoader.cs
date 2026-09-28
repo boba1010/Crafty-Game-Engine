@@ -37,4 +37,9 @@ public static class ChunkLoader
 
         return [.. chunks];
     }
+
+    public static byte[] Load(int x, int z)
+    {
+        return WorldGenService.LoadCompressedChunkBytes(x, z);
+    }
 }

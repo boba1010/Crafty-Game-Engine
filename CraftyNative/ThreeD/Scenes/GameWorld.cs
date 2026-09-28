@@ -1,4 +1,4 @@
-﻿using Silk.NET.Windowing;
+﻿using CraftyNative.ThreeD.ECS;
 
 namespace CraftyNative.ThreeD.Scenes;
 
@@ -16,10 +16,7 @@ public sealed class GameWorld : IDisposable
         foreach (var system in Scene.Systems)
             system.Update(ref Scene, deltaTime);
 
-        WorldObject camera = new();
-
-        foreach (var cam in Scene.GetEntitiesWith<Camera>())
-            camera = cam;
+        WorldObject camera = Scene.GetEntitiesWith<Camera>().FirstOrDefault();
 
         CraftyNative3D.Render(ref Scene, camera);
     }

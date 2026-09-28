@@ -1,22 +1,24 @@
 ﻿using CraftyNative.ThreeD.World;
+using System.Collections.Concurrent;
 using System.Numerics;
+
 namespace CraftyNative.ThreeD.Meshes;
 
 public static class WorldMeshManager
 {
-    private static readonly Dictionary<SectionCoordinate, WorldMeshSection> _sections = [];
+    private static readonly ConcurrentDictionary<SectionCoordinate, WorldMeshSection> _sections = new();
 
     public static float RenderDistance { get; set; } = 256f;
-    public static IReadOnlyCollection<WorldMeshSection> Sections => _sections.Values;
+    public static ICollection<WorldMeshSection> Sections => _sections.Values;
 
-    public static void Add(WorldMeshSection section)
+    public static bool TryAdd(WorldMeshSection section)
     {
-        _sections.Add(section.Coordinate, section);
+        return _sections.TryAdd(section.Coordinate, section);
     }
 
     public static bool Remove(SectionCoordinate coordinate)
     {
-        return _sections.Remove(coordinate);
+        return _sections.Remove(coordinate, out _);
     }
 
     public static bool TryGet(SectionCoordinate coordinate, out WorldMeshSection? section)
@@ -42,11 +44,5 @@ public static class WorldMeshManager
     public static void Clear()
     {
         _sections.Clear();
-    }
-
-    public static void Dispose()
-    {
-        foreach (var section in _sections.Values)
-            section?.Dispose();
     }
 }

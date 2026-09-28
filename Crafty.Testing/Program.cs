@@ -12,7 +12,7 @@ internal class Program
         var seed = WorldSeed.Generate();
         Console.WriteLine($"Seed: {seed}");
 
-        IWorldGenService worldGenService = new WorldGenService(new(".\\saves\\silly"));
+        IWorldGenService worldGenService = new WorldGenService(new(".\\saves\\silly"), seed);
 
         var genWorld = worldGenService.GenerateWorld(seed);
 

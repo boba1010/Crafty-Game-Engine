@@ -7,9 +7,21 @@ using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public struct PlayerMovementSystem() : ISystem
+public struct PlayerMovementSystem : ISystem
 {
     public float Speed { get; set; } = 20f;
+    private bool _isSprintPressed;
+
+    public PlayerMovementSystem()
+    {
+        SystemAPI.Input.KeyUp += Input_KeyUp;
+    }
+
+    private void Input_KeyUp(Key key)
+    {
+        if (key is Key.ControlLeft)
+            _isSprintPressed = !_isSprintPressed;
+    }
 
     public void Update(ref Scene scene, double deltaTime)
     {
@@ -19,22 +31,22 @@ public struct PlayerMovementSystem() : ISystem
 
             Vector3 movement = Vector3.Zero;
 
-            if (SystemAPI.Input.IsKeyDown(Key.W))
+            if (SystemAPI.Input.IsKeyPressed(Key.W))
                 movement.Z -= 1;
 
-            if (SystemAPI.Input.IsKeyDown(Key.S))
+            if (SystemAPI.Input.IsKeyPressed(Key.S))
                 movement.Z += 1;
 
-            if (SystemAPI.Input.IsKeyDown(Key.A))
+            if (SystemAPI.Input.IsKeyPressed(Key.A))
                 movement.X -= 1;
 
-            if (SystemAPI.Input.IsKeyDown(Key.D))
+            if (SystemAPI.Input.IsKeyPressed(Key.D))
                 movement.X += 1;
 
-            if (SystemAPI.Input.IsKeyDown(Key.Space))
+            if (SystemAPI.Input.IsKeyPressed(Key.Space))
                 movement.Y += 1;
 
-            if (SystemAPI.Input.IsKeyDown(Key.ShiftLeft))
+            if (SystemAPI.Input.IsKeyPressed(Key.ShiftLeft))
                 movement.Y -= 1;
 
             if (movement == Vector3.Zero)
@@ -49,7 +61,10 @@ public struct PlayerMovementSystem() : ISystem
 
             movement = new Vector3(movement.X * cos + movement.Z * sin, movement.Y, -movement.X * sin + movement.Z * cos);
 
-            transform.Position += movement * Speed * (float)deltaTime;
+            if (!_isSprintPressed)
+                transform.Position += movement * Speed * (float)deltaTime;
+            else
+                transform.Position += movement * (Speed + 5) * (float)deltaTime;
         }
     }
 }
