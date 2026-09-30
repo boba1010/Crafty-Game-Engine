@@ -1,7 +1,8 @@
-﻿using CraftyNative.ThreeD.ECS;
+﻿using CraftyNative.ECS;
+using CraftyNative.ThreeD;
 using System.Runtime.InteropServices;
 
-namespace CraftyNative.ThreeD.Scenes;
+namespace CraftyNative.Scenes;
 
 public struct Scene
 {
@@ -71,5 +72,10 @@ public struct Scene
     {
         foreach (var id in GetStore<T>().Entities)
             yield return new WorldObject(id);
+    }
+
+    public bool HasComponent<T>(WorldObject obj) where T : unmanaged, IComponent
+    {
+        return GetStore<T>().Contains(obj.Id);
     }
 }

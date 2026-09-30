@@ -16,9 +16,24 @@ public static class WorldMeshManager
         return _sections.TryAdd(section.Coordinate, section);
     }
 
-    public static bool Remove(SectionCoordinate coordinate)
+    public static bool RemoveSection(SectionCoordinate coordinate)
     {
         return _sections.Remove(coordinate, out _);
+    }
+
+    public static bool RemoveChunk(int x, int z)
+    {
+        bool removed = false;
+
+        foreach (var coordinate in _sections.Keys)
+        {
+            if (coordinate.ChunkX != x || coordinate.ChunkZ != z)
+                continue;
+
+            removed |= _sections.TryRemove(coordinate, out _);
+        }
+
+        return removed;
     }
 
     public static bool TryGet(SectionCoordinate coordinate, out WorldMeshSection? section)

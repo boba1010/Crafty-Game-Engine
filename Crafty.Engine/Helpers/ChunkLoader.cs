@@ -1,7 +1,7 @@
 ﻿using Crafty.ChunkGeneration;
 using Crafty.ChunkGeneration.World;
 
-namespace Crafty.Engine.ChunkBuilding;
+namespace Crafty.Engine.Helpers;
 
 public static class ChunkLoader
 {
@@ -38,8 +38,8 @@ public static class ChunkLoader
         return [.. chunks];
     }
 
-    public static byte[] Load(int x, int z)
+    public static Chunk Load(int x, int z)
     {
-        return WorldGenService.LoadCompressedChunkBytes(x, z);
+        return WorldGenService.LoadChunk(x, z);
     }
 }

@@ -1,6 +1,7 @@
-﻿using CraftyNative.ThreeD.ECS;
+﻿using CraftyNative.ECS;
+using CraftyNative.ThreeD;
 
-namespace CraftyNative.ThreeD.Scenes;
+namespace CraftyNative.Scenes;
 
 internal struct HierarchySystem() : ISystem
 {

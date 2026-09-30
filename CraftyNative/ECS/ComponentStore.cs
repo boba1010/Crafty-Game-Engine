@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace CraftyNative.ThreeD.ECS;
+namespace CraftyNative.ECS;
 
 public sealed class ComponentStore<T> where T : struct, IComponent
 {

@@ -1,6 +1,6 @@
 ﻿using CraftyNative.ThreeD;
 
-namespace Crafty.Engine.ChunkBuilding;
+namespace Crafty.Engine.Helpers;
 
 public readonly record struct AtlasRegion(float U0, float V0, float U1, float V1);
 

@@ -16,7 +16,7 @@ public sealed class MainMod : IMod
     {
         var blocksCreator = new BlocksCreator();
 
-        var air = blocksCreator.CreateOneSidedTextureBlock("crafty.air");
+        var air = blocksCreator.CreateAirBlock();
         context.Blocks.Register(air);
         context.Logger.Log("crafty.air created successfully");
 

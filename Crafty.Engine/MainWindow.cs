@@ -1,15 +1,14 @@
 ﻿using Crafty.ChunkGeneration;
 using Crafty.ChunkGeneration.IO;
 using Crafty.ChunkGeneration.World;
-using Crafty.Engine.ChunkBuilding;
 using Crafty.Engine.Components;
+using Crafty.Engine.Helpers;
 using Crafty.Engine.Systems;
 using CraftyNative;
+using CraftyNative.ECS;
+using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
-using CraftyNative.ThreeD.ECS;
-using CraftyNative.ThreeD.Meshes;
-using CraftyNative.ThreeD.Scenes;
-using CraftyNative.ThreeD.World;
+using CraftyNative.ThreeD.Physics;
 using System.Numerics;
 
 namespace Crafty.Engine;
@@ -89,19 +88,49 @@ public sealed class MainWindow : Window
         _world.Scene.SetParent(camera, playerParent);
         _world.Scene.AddComponent(playerParent, new Player());
         _world.Scene.AddComponent(playerParent, new Transform());
-        
+        _world.Scene.AddComponent(playerParent, new Movement());
+        _world.Scene.AddComponent(playerParent, new Collider(new(0.6f, 1.8f, 0.6f)));
+
         _world.Scene.Systems.Add(CameraSystem);
         _world.Scene.Systems.Add(new PlayerMovementSystem());
 
         var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
         _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
 
+        //_world.Scene.Systems.Add(new CollisionSystem());
+
         SystemAPI.JobSystem = new JobSystem();
     }
+
+    private static double _elapsed;
+    private static int _frames;
+    public static int FPS { get; private set; }
+    public double WorstFrameTime { get; private set; }
 
     protected override void Render(double deltaTime)
     {
         _world.Render(deltaTime);
+
+        double frameTime = deltaTime * 1000.0;
+
+        _elapsed += deltaTime;
+        _frames++;
+
+        if (frameTime > WorstFrameTime)
+            WorstFrameTime = frameTime;
+
+        if (_elapsed >= 1.0)
+        {
+            FPS = _frames;
+
+            Console.WriteLine($"FPS: {FPS}");
+            Console.WriteLine($"Last Frame: {frameTime:F2} ms");
+            Console.WriteLine($"Worst Frame: {WorstFrameTime:F2} ms");
+
+            _elapsed = 0;
+            _frames = 0;
+            WorstFrameTime = 0;
+        }
     }
 
     public override void Dispose()

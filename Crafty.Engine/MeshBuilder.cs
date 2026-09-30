@@ -1,5 +1,5 @@
 ﻿using Crafty.ChunkGeneration.World;
-using Crafty.Engine.ChunkBuilding;
+using Crafty.Engine.Helpers;
 using Crafty.SDK.Client.Blocks;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;

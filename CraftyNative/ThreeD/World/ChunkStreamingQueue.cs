@@ -30,7 +30,7 @@
 //    }
 //}
 
-using CraftyNative.ThreeD.ECS;
+using CraftyNative.ECS;
 using System.Collections.Concurrent;
 
 namespace CraftyNative.ThreeD.World;

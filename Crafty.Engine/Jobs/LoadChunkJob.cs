@@ -1,8 +1,6 @@
 ﻿using Crafty.ChunkGeneration.World;
-using Crafty.Engine.ChunkBuilding;
 using Crafty.Engine.Helpers;
-using CraftyNative.ThreeD.ECS;
-using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ECS;
 using CraftyNative.ThreeD.World;
 
 namespace Crafty.Engine.Jobs;
@@ -20,31 +18,30 @@ public readonly struct LoadChunkJob(World world, int x, int z) : IJob
         if (world.GetChunk(_x, _z) is not null)
             return;
 
-        byte[] data;
+        Chunk chunk;
 
-        if (!ChunkCache.TryGet(_x, _z, out data!))
+        if (!ChunkCache.TryGet(_x, _z, out chunk!))
         {
-            data = ChunkLoader.Load(_x, _z);
-            ChunkCache.Set(_x, _z, data);
+            chunk = ChunkLoader.Load(_x, _z);
+            ChunkCache.Set(_x, _z, chunk);
         }
-
-        Chunk chunk = ChunkByteTransformer.FromBytes(_x, _z, data);
 
         world.LoadChunk(chunk);
 
-        for (int sectionY = 0; sectionY < SectionCoordinate.SectionsY; sectionY++)
-        {
-            for (int sectionZ = 0; sectionZ < 2; sectionZ++)
-            {
-                for (int sectionX = 0; sectionX < 2; sectionX++)
-                {
-                    var coordinate = new SectionCoordinate(chunk.X, chunk.Z, sectionX, sectionY, sectionZ);
+        //for (int sectionY = 0; sectionY < SectionCoordinate.SectionsY; sectionY++)
+        //{
+        //    for (int sectionZ = 0; sectionZ < 2; sectionZ++)
+        //    {
+        //        for (int sectionX = 0; sectionX < 2; sectionX++)
+        //        {
+        //            var coordinate = new SectionCoordinate(chunk.X, chunk.Z, sectionX, sectionY, sectionZ);
 
-                    var sectionMesh = MeshBuilder.BuildSectionMesh(world, sectionX, sectionY, sectionZ, chunk.X, chunk.Z);
+        //            var sectionMesh = MeshBuilder.BuildSectionMesh(world, sectionX, sectionY, sectionZ, chunk.X, chunk.Z);
 
-                    WorldMeshManager.TryAdd(new WorldMeshSection(coordinate, sectionMesh));
-                }
-            }
-        }
+        //            WorldMeshManager.TryAdd(new WorldMeshSection(coordinate, sectionMesh));
+                    
+        //        }
+        //    }
+        //}
     }
 }

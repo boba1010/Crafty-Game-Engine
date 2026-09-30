@@ -1,4 +1,4 @@
-﻿namespace CraftyNative.ThreeD.ECS;
+﻿namespace CraftyNative.ECS;
 
 public interface IJob
 {

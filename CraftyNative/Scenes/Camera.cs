@@ -1,6 +1,6 @@
-﻿using CraftyNative.ThreeD.ECS;
+﻿using CraftyNative.ECS;
 
-namespace CraftyNative.ThreeD.Scenes;
+namespace CraftyNative.Scenes;
 
 public struct Camera : IComponent
 {

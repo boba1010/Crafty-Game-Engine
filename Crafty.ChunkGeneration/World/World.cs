@@ -1,4 +1,5 @@
 ﻿using Crafty.SDK.World;
+using System.Collections.Concurrent;
 
 namespace Crafty.ChunkGeneration.World;
 
@@ -8,7 +9,7 @@ public sealed class World
     public string Directory { get; set; } = null!;
     public ulong Seed { get; set; }
 
-    private readonly Dictionary<(int X, int Z), IChunk> _chunks = [];
+    private readonly ConcurrentDictionary<(int X, int Z), IChunk> _chunks = [];
 
     public IChunk? GetChunk(int x, int z)
     {
@@ -22,7 +23,7 @@ public sealed class World
 
     public void UnloadChunk(int x, int z)
     {
-        _chunks.Remove((x, z));
+        _chunks.Remove((x, z), out _);
     }
 
     public BlockPlacement GetBlock(int x, int y, int z)

@@ -20,11 +20,6 @@ public class WorldGenService : IWorldGenService
 
     public Chunk LoadChunk(int x, int z)
     {
-        return WorldIOManager.LoadChunk(x, z);
-    }
-
-    public byte[] LoadCompressedChunkBytes(int x, int z)
-    {
         string path = Path.Combine(WorldIOManager.WorldPath, "chunks", $"{x}_{z}.chunk");
 
         if (!File.Exists(path))
@@ -33,7 +28,7 @@ public class WorldGenService : IWorldGenService
             WorldIOManager.SaveChunk((Chunk)chunk);
         }
 
-        return WorldIOManager.LoadCompressedChunkBytes(x, z);
+        return WorldIOManager.LoadChunk(x, z);
     }
 
     public World.World LoadWorld(string path) => WorldIOManager.LoadWorld(path);

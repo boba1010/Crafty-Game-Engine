@@ -1,8 +1,8 @@
 ﻿using Crafty.Engine.Components;
 using CraftyNative;
+using CraftyNative.ECS;
+using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
-using CraftyNative.ThreeD.ECS;
-using CraftyNative.ThreeD.Scenes;
 using System.Numerics;
 
 namespace Crafty.Engine.Systems;

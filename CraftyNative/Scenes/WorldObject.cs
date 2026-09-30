@@ -1,4 +1,4 @@
-﻿namespace CraftyNative.ThreeD.Scenes;
+﻿namespace CraftyNative.Scenes;
 
 public readonly struct WorldObject(uint id)
 {

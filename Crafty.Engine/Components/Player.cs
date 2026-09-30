@@ -1,4 +1,4 @@
-﻿using CraftyNative.ThreeD.ECS;
+﻿using CraftyNative.ECS;
 
 namespace Crafty.Engine.Components;
 

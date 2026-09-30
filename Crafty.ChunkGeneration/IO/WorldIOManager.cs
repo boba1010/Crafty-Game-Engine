@@ -80,13 +80,16 @@ public static class WorldIOManager
         return chunk;
     }
 
-    public static byte[] LoadCompressedChunkBytes(int x, int z)
+    public static byte[] LoadChunkBytes(int x, int z)
     {
         string path = Path.Combine(WorldPath, "chunks", $"{x}_{z}.chunk");
 
         using var fs = File.OpenRead(path);
-        using var reader = new BinaryReader(fs);
+        using var compression = new DeflateStream(fs, CompressionMode.Decompress);
+        using var output = new MemoryStream();
 
-        return reader.ReadBytes((int)fs.Length);
+        compression.CopyTo(output);
+
+        return output.ToArray();
     }
 }

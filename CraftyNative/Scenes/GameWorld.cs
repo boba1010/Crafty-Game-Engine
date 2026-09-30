@@ -1,6 +1,7 @@
-﻿using CraftyNative.ThreeD.ECS;
+﻿using CraftyNative.ThreeD;
+using System.Diagnostics;
 
-namespace CraftyNative.ThreeD.Scenes;
+namespace CraftyNative.Scenes;
 
 public sealed class GameWorld : IDisposable
 {

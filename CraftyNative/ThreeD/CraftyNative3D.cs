@@ -1,5 +1,5 @@
-﻿using CraftyNative.ThreeD.Meshes;
-using CraftyNative.ThreeD.Scenes;
+﻿using CraftyNative.Scenes;
+using CraftyNative.ThreeD.Meshes;
 using Silk.NET.Windowing;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -353,14 +353,11 @@ internal unsafe static class CraftyNative3D
     {
         var gpuMesh = GetOrCreateMesh(mesh);
 
-        var mvpData = MemoryMarshal.AsBytes(
-            MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
+        var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
 
         _constantBuffer.Upload(mvpData);
 
-        _commandBuffer.SetVertexBuffer(
-            gpuMesh.VertexBuffer,
-            mesh.VertexStride);
+        _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer, mesh.VertexStride);
 
         _commandBuffer.SetIndexBuffer(gpuMesh.IndexBuffer);
         _commandBuffer.SetUniformBuffer(_constantBuffer);

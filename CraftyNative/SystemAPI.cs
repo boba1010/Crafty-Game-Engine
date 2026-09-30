@@ -1,4 +1,4 @@
-﻿using CraftyNative.ThreeD.ECS;
+﻿using CraftyNative.ECS;
 using System.Numerics;
 
 namespace CraftyNative;

@@ -1,8 +1,8 @@
 ﻿using Crafty.Engine.Components;
 using CraftyNative;
+using CraftyNative.ECS;
+using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
-using CraftyNative.ThreeD.ECS;
-using CraftyNative.ThreeD.Scenes;
 using System.Numerics;
 
 namespace Crafty.Engine.Systems;
@@ -28,6 +28,7 @@ public struct PlayerMovementSystem : ISystem
         foreach (var camera in scene.GetEntitiesWith<Player>())
         {
             ref var transform = ref scene.GetComponent<Transform>(camera);
+            ref var movementComponent = ref scene.GetComponent<Movement>(camera);
 
             Vector3 movement = Vector3.Zero;
 
@@ -50,7 +51,10 @@ public struct PlayerMovementSystem : ISystem
                 movement.Y -= 1;
 
             if (movement == Vector3.Zero)
+            {
+                movementComponent.Velocity = Vector3.Zero;
                 continue;
+            }
 
             movement = Vector3.Normalize(movement);
 
@@ -61,10 +65,9 @@ public struct PlayerMovementSystem : ISystem
 
             movement = new Vector3(movement.X * cos + movement.Z * sin, movement.Y, -movement.X * sin + movement.Z * cos);
 
-            if (!_isSprintPressed)
-                transform.Position += movement * Speed * (float)deltaTime;
-            else
-                transform.Position += movement * (Speed + 5) * (float)deltaTime;
+            float speed = _isSprintPressed ? Speed + 5 : Speed;
+
+            movementComponent.Velocity = movement * speed;
         }
     }
 }

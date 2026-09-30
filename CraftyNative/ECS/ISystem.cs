@@ -1,6 +1,6 @@
-﻿using CraftyNative.ThreeD.Scenes;
+﻿using CraftyNative.Scenes;
 
-namespace CraftyNative.ThreeD.ECS;
+namespace CraftyNative.ECS;
 
 public interface ISystem
 {
