@@ -8,6 +8,7 @@ public sealed class World
     public string Name { get; set; } = null!;
     public string Directory { get; set; } = null!;
     public ulong Seed { get; set; }
+    public event Action<BlockChanged>? BlockChanged;
 
     private readonly ConcurrentDictionary<(int X, int Z), IChunk> _chunks = [];
 
@@ -51,7 +52,7 @@ public sealed class World
         return chunk.GetBlock(localX, y, localZ);
     }
 
-    public void SetBlock(int x, int y, int z, BlockPlacement block)
+    public void SetBlock(int x, int y, int z, ushort id)
     {
         int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
         int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
@@ -73,6 +74,10 @@ public sealed class World
         if (chunk is null)
             return;
 
-        chunk.SetBlock(block);
+        ushort oldId = chunk.GetBlock(localX, y, localZ).Id;
+
+        chunk.SetBlock(new(id, (byte)localX, (short)y, (byte)localZ));
+
+        BlockChanged?.Invoke(new(x, y, z, oldId, id));
     }
 }

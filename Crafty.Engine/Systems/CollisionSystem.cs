@@ -32,24 +32,22 @@ public sealed class CollisionSystem : ISystem
 
             for (int i = 0; i < steps; i++)
             {
-                transform.Position += step;
-
-                ResolveAxis(ref transform.Position, ref collider, ref movement, Vector3.UnitY);
-                ResolveAxis(ref transform.Position, ref collider, ref movement, Vector3.UnitX);
-                ResolveAxis(ref transform.Position, ref collider, ref movement, Vector3.UnitZ);
+                ResolveAxis(ref transform.Position, ref collider, ref movement, step.Y, Vector3.UnitY);
+                ResolveAxis(ref transform.Position, ref collider, ref movement, step.X, Vector3.UnitX);
+                ResolveAxis(ref transform.Position, ref collider, ref movement, step.Z, Vector3.UnitZ);
             }
         }
     }
 
-    private void ResolveAxis(ref Vector3 position, ref Collider collider, ref Movement movement, Vector3 axis)
+    private void ResolveAxis(ref Vector3 position, ref Collider collider, ref Movement movement, float amount, Vector3 axis)
     {
-        var min = collider.GetMin(position);
-        var max = collider.GetMax(position);
+        Vector3 candidate = position + axis * amount;
+        var min = collider.GetMin(candidate);
+        var max = collider.GetMax(candidate);
 
         int minX = (int)MathF.Floor(min.X);
         int minY = (int)MathF.Floor(min.Y);
         int minZ = (int)MathF.Floor(min.Z);
-
         int maxX = (int)MathF.Floor(max.X - 0.001f);
         int maxY = (int)MathF.Floor(max.Y - 0.001f);
         int maxZ = (int)MathF.Floor(max.Z - 0.001f);
@@ -63,22 +61,23 @@ public sealed class CollisionSystem : ISystem
                     foreach (var box in GetCollisionBoxes(x, y, z))
                     {
                         var blockMin = new Vector3(box.MinX, box.MinY, box.MinZ);
-
                         var blockMax = new Vector3(box.MaxX, box.MaxY, box.MaxZ);
 
-                        if (!Intersects(min, max, blockMin, blockMax))
-                            continue;
+                        if (Intersects(min, max, blockMin, blockMax))
+                        {
+                            collider.IsColliding = true;
 
-                        Resolve(ref position, ref collider, ref movement, axis, blockMin, blockMax);
+                            if (axis == Vector3.UnitY && amount < 0)
+                                movement.IsGrounded = true;
 
-                        min = collider.GetMin(position);
-                        max = collider.GetMax(position);
-
-                        collider.IsColliding = true;
+                            return;
+                        }
                     }
                 }
             }
         }
+
+        position = candidate;
     }
 
     private IEnumerable<BoundingBox> GetCollisionBoxes(int x, int y, int z)
@@ -107,12 +106,12 @@ public sealed class CollisionSystem : ISystem
 
         if (axis == Vector3.UnitX)
         {
-            if (movement.Velocity.X > 0 && max.X > blockMin.X)
+            if (movement.Velocity.X > 0)
             {
                 position.X -= max.X - blockMin.X;
                 movement.Velocity.X = 0;
             }
-            else if (movement.Velocity.X < 0 && min.X < blockMax.X)
+            else if (movement.Velocity.X < 0)
             {
                 position.X += blockMax.X - min.X;
                 movement.Velocity.X = 0;

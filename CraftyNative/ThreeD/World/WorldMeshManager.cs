@@ -7,9 +7,109 @@ namespace CraftyNative.ThreeD.Meshes;
 public static class WorldMeshManager
 {
     private static readonly ConcurrentDictionary<SectionCoordinate, WorldMeshSection> _sections = new();
+    private static readonly ConcurrentQueue<(int X, int Y, int Z)> _dirtyBlocks = new();
+    private static readonly ConcurrentQueue<WorldMeshSection> _dirtySections = new();
 
+    public static bool HasDirtyBlocks => !_dirtyBlocks.IsEmpty;
     public static float RenderDistance { get; set; } = 256f;
-    public static ICollection<WorldMeshSection> Sections => _sections.Values;
+
+    public static void MarkBlockDirty(int x, int y, int z)
+    {
+        _dirtyBlocks.Enqueue((x, y, z));
+    }
+
+    public static bool TryDequeueDirtySection(out WorldMeshSection? section) => _dirtySections.TryDequeue(out section);
+
+    public static void ProcessDirtyBlocks()
+    {
+        int sectionSize = SectionCoordinate.SectionSize;
+        int sectionsPerChunk = SectionCoordinate.ChunkSize / sectionSize;
+
+        while (_dirtyBlocks.TryDequeue(out var block))
+        {
+            int worldSectionX = Math.DivRem(block.X, sectionSize, out int localX);
+            int worldSectionZ = Math.DivRem(block.Z, sectionSize, out int localZ);
+
+            if (localX < 0)
+            {
+                localX += sectionSize;
+                worldSectionX--;
+            }
+
+            if (localZ < 0)
+            {
+                localZ += sectionSize;
+                worldSectionZ--;
+            }
+
+            int sectionY = block.Y / sectionSize;
+            int chunkX = Math.DivRem(worldSectionX, sectionsPerChunk, out int sectionX);
+            int chunkZ = Math.DivRem(worldSectionZ, sectionsPerChunk, out int sectionZ);
+
+            if (sectionX < 0)
+            {
+                sectionX += sectionsPerChunk;
+                chunkX--;
+            }
+
+            if (sectionZ < 0)
+            {
+                sectionZ += sectionsPerChunk;
+                chunkZ--;
+            }
+
+            MarkSectionDirty(chunkX, chunkZ, sectionX, sectionY, sectionZ);
+
+            if (localX == 0)
+                MarkSectionDirty(chunkX, chunkZ, sectionX - 1, sectionY, sectionZ);
+            else if (localX == sectionSize - 1)
+                MarkSectionDirty(chunkX, chunkZ, sectionX + 1, sectionY, sectionZ);
+
+            if (localZ == 0)
+                MarkSectionDirty(chunkX, chunkZ, sectionX, sectionY, sectionZ - 1);
+            else if (localZ == sectionSize - 1)
+                MarkSectionDirty(chunkX, chunkZ, sectionX, sectionY, sectionZ + 1);
+
+            int localY = block.Y % sectionSize;
+
+            if (localY == 0 && sectionY > 0)
+                MarkSectionDirty(chunkX, chunkZ, sectionX, sectionY - 1, sectionZ);
+            else if (localY == sectionSize - 1 && sectionY < SectionCoordinate.SectionsY - 1)
+                MarkSectionDirty(chunkX, chunkZ, sectionX, sectionY + 1, sectionZ);
+        }
+    }
+
+    private static void MarkSectionDirty(int chunkX, int chunkZ, int sectionX, int sectionY, int sectionZ)
+    {
+        int sectionsPerChunk = SectionCoordinate.ChunkSize / SectionCoordinate.SectionSize;
+        if (sectionY < 0 || sectionY >= SectionCoordinate.SectionsY)
+            return;
+        if (sectionX < 0)
+        {
+            sectionX += sectionsPerChunk;
+            chunkX--;
+        }
+        else if (sectionX >= sectionsPerChunk)
+        {
+            sectionX -= sectionsPerChunk;
+            chunkX++;
+        }
+        if (sectionZ < 0)
+        {
+            sectionZ += sectionsPerChunk;
+            chunkZ--;
+        }
+        else if (sectionZ >= sectionsPerChunk)
+        {
+            sectionZ -= sectionsPerChunk;
+            chunkZ++;
+        }
+        var coordinate = new SectionCoordinate(chunkX, chunkZ, sectionX, sectionY, sectionZ);
+        if (!_sections.TryGetValue(coordinate, out var section) || section.IsDirty)
+            return;
+        section.MarkDirty();
+        _dirtySections.Enqueue(section);
+    }
 
     public static bool TryAdd(WorldMeshSection section)
     {
@@ -142,5 +242,8 @@ public static class WorldMeshManager
     public static void Clear()
     {
         _sections.Clear();
+        while (_dirtyBlocks.TryDequeue(out _))
+        {
+        }
     }
 }

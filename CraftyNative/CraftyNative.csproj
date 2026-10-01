@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\My Programs\Vulcan\Vulcan\Vulcan.csproj" />
+    <ProjectReference Include="..\Crafty.ChunkGeneration\Crafty.ChunkGeneration.csproj" />
   </ItemGroup>
 
 </Project>

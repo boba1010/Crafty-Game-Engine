@@ -3,7 +3,7 @@ using CraftyNative.ThreeD;
 
 namespace CraftyNative.Scenes;
 
-internal struct HierarchySystem() : ISystem
+internal struct HierarchySystem : ISystem
 {
     public void Update(ref Scene scene, double deltaTime)
     {
@@ -18,7 +18,6 @@ internal struct HierarchySystem() : ISystem
             ref var childTransform = ref scene.GetComponent<Transform>(child);
 
             childTransform.Position = parentTransform.Position + childTransform.LocalPosition;
-
             childTransform.Rotation = parentTransform.Rotation + childTransform.LocalRotation;
         }
     }

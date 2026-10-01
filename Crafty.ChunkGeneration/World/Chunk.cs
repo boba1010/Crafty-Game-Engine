@@ -30,6 +30,7 @@ public sealed class Chunk : IChunk
 
     public void SetBlock(BlockPlacement block)
     {
-        Blocks.Add(block);
+        int index = block.X * (Size * 416) + block.Z * 416 + block.Y;
+        Blocks[index] = block;
     }
 }

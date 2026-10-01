@@ -8,6 +8,7 @@ using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
+using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Physics;
 using System.Numerics;
 
@@ -75,7 +76,7 @@ public sealed class MainWindow : Window
 
         _world.Scene.AddComponent(camera, new Transform
         {
-            LocalPosition = new(0, 2, -3)
+            LocalPosition = new(0, 1.8f, 0)
         });
         _world.Scene.AddComponent(camera, new Camera
         {
@@ -91,13 +92,16 @@ public sealed class MainWindow : Window
         _world.Scene.AddComponent(playerParent, new Movement());
         _world.Scene.AddComponent(playerParent, new Collider(new(0.6f, 1.8f, 0.6f)));
 
+        var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
+
+        world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
+
         _world.Scene.Systems.Add(CameraSystem);
         _world.Scene.Systems.Add(new PlayerMovementSystem());
-
-        var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
         _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
-
         _world.Scene.Systems.Add(new CollisionSystem());
+        _world.Scene.Systems.Add(new PlayerBlockInteractionSystem(world));
+        _world.Scene.Systems.Add(new WorldMeshUpdateSystem(world));
 
         SystemAPI.JobSystem = new JobSystem();
     }
