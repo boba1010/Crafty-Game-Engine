@@ -6,4 +6,5 @@ namespace Crafty.Engine.Components;
 public struct Movement : IComponent
 {
     public Vector3 Velocity;
+    public bool IsFlying;
 }

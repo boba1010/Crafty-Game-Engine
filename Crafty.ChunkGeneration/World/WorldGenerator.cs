@@ -20,9 +20,12 @@ internal sealed class WorldGenerator
 
         Directory.CreateDirectory(Path.Combine(@$".\saves\{world.Name}", "chunks"));
 
-        Parallel.For(0, WorldSize, x =>
+        int min = -WorldSize / 2;
+        int max = WorldSize / 2;
+
+        Parallel.For(min, WorldSize, x =>
         {
-            for (int z = 0; z < WorldSize; z++)
+            for (int z = min; z < max; z++)
             {
                 WorldIOManager.SaveChunk((Chunk)GenerateChunk(x, z));
             }

@@ -14,7 +14,7 @@ internal class Program
 
         IWorldGenService worldGenService = new WorldGenService(new(".\\saves\\silly"), seed);
 
-        var genWorld = worldGenService.GenerateWorld(seed);
+        var genWorld = worldGenService.GenerateWorld();
 
         Console.WriteLine($"{genWorld.Name} HAS FINISHED GENERATING");
     }

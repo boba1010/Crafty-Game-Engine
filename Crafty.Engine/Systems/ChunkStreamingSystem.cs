@@ -10,7 +10,7 @@ using CraftyNative.ThreeD.World;
 
 namespace Crafty.Engine.Systems;
 
-public struct ChunkStreamingSystem(World world) : ISystem
+public class ChunkStreamingSystem(World world) : ISystem
 {
     public int StreamingDistance { get; set; } = 8;
 
@@ -52,9 +52,7 @@ public struct ChunkStreamingSystem(World world) : ISystem
             int chunkX = (int)MathF.Floor(transform.Position.X / Chunk.Size);
             int chunkZ = (int)MathF.Floor(transform.Position.Z / Chunk.Size);
 
-            if (_initialized &&
-                chunkX == _lastChunkX &&
-                chunkZ == _lastChunkZ)
+            if (_initialized && chunkX == _lastChunkX && chunkZ == _lastChunkZ)
                 continue;
 
             _initialized = true;
@@ -99,10 +97,10 @@ public struct ChunkStreamingSystem(World world) : ISystem
         int radius = StreamingDistance;
         int radiusSquared = radius * radius;
 
-        int startX = Math.Max(0, centerX - radius);
+        int startX = centerX - radius;
         int endX = centerX + radius;
 
-        int startZ = Math.Max(0, centerZ - radius);
+        int startZ = centerZ - radius;
         int endZ = centerZ + radius;
 
         HashSet<(int x, int z)> requiredChunks = [];

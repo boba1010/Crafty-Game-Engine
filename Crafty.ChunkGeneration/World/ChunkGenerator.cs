@@ -28,7 +28,7 @@ internal class ChunkGenerator : IChunkGenerator
                         _ => 0
                     };
 
-                    chunk.SetBlock(new(blockId, (byte)x, (ushort)y, (byte)z));
+                    chunk.SetBlock(new(blockId, (byte)x, (short)y, (byte)z));
                 }
             }
         }

@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public struct PlayerCameraSystem() : ISystem
+public class PlayerCameraSystem : ISystem
 {
     public bool IsMouseMoving { get; set; } = false;
     public float MouseSensitivity { get; set; } = 0.0025f;

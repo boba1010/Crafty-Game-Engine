@@ -87,7 +87,7 @@ public sealed class MainWindow : Window
         var playerParent = _world.Scene.CreateObject();
         _world.Scene.SetParent(camera, playerParent);
         _world.Scene.AddComponent(playerParent, new Player());
-        _world.Scene.AddComponent(playerParent, new Transform());
+        _world.Scene.AddComponent(playerParent, new Transform() { Position = new(0, 75, 0) });
         _world.Scene.AddComponent(playerParent, new Movement());
         _world.Scene.AddComponent(playerParent, new Collider(new(0.6f, 1.8f, 0.6f)));
 
@@ -97,7 +97,7 @@ public sealed class MainWindow : Window
         var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
         _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
 
-        //_world.Scene.Systems.Add(new CollisionSystem());
+        _world.Scene.Systems.Add(new CollisionSystem());
 
         SystemAPI.JobSystem = new JobSystem();
     }

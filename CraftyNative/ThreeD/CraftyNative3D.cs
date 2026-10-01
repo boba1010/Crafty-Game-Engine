@@ -1,6 +1,7 @@
 ﻿using CraftyNative.Scenes;
 using CraftyNative.ThreeD.Meshes;
 using Silk.NET.Windowing;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Vulcan;
@@ -318,15 +319,16 @@ internal unsafe static class CraftyNative3D
 
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(camera.FieldOfView, size.X / (float)size.Y, camera.NearPlane, camera.FarPlane);
 
-        foreach (var section in WorldMeshManager.GetVisibleSections(cameraTransform.Position))
+        var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, out var visibleSections);
+        for (int i = 0; i < visibleSectionsCount; i++)
         {
+            var section = visibleSections[i];
             var mesh = section.Mesh;
 
             if (mesh.Vertices.Count <= 0 || mesh.Indices.Count <= 0)
                 continue;
 
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
-
             DrawMesh(mesh, model * view * projection, $"{section.Coordinate.SectionX}_{section.Coordinate.SectionY}_{section.Coordinate.SectionZ}");
         }
 

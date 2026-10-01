@@ -3,18 +3,22 @@ using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
+using System.Diagnostics;
 using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public struct PlayerMovementSystem : ISystem
+public sealed class PlayerMovementSystem : ISystem
 {
-    public float Speed { get; set; } = 20f;
+    public double Speed { get; set; } = 10;
+    public double Gravity {get;set;} = 30;
     private bool _isSprintPressed;
+    private bool _isFlying = true;
 
     public PlayerMovementSystem()
     {
         SystemAPI.Input.KeyUp += Input_KeyUp;
+        SystemAPI.Input.KeyDown += Input_KeyDown;
     }
 
     private void Input_KeyUp(Key key)
@@ -23,14 +27,36 @@ public struct PlayerMovementSystem : ISystem
             _isSprintPressed = !_isSprintPressed;
     }
 
+
+    private void Input_KeyDown(Key key)
+    {
+        if (key is Key.Space && IsDoublePressed())
+            _isFlying = !_isFlying;
+    }
+
+    private long _lastPress;
+
+    private bool IsDoublePressed()
+    {
+        long now = Stopwatch.GetTimestamp();
+
+        double elapsed = (now - _lastPress) / (double)Stopwatch.Frequency;
+
+        _lastPress = now;
+
+        return elapsed <= 0.3;
+    }
+
     public void Update(ref Scene scene, double deltaTime)
     {
-        foreach (var camera in scene.GetEntitiesWith<Player>())
+        foreach (var player in scene.GetEntitiesWith<Player>())
         {
-            ref var transform = ref scene.GetComponent<Transform>(camera);
-            ref var movementComponent = ref scene.GetComponent<Movement>(camera);
+            ref var transform = ref scene.GetComponent<Transform>(player);
+            ref var movementComponent = ref scene.GetComponent<Movement>(player);
 
             Vector3 movement = Vector3.Zero;
+
+            movementComponent.IsFlying = _isFlying;
 
             if (SystemAPI.Input.IsKeyPressed(Key.W))
                 movement.Z -= 1;
@@ -44,30 +70,44 @@ public struct PlayerMovementSystem : ISystem
             if (SystemAPI.Input.IsKeyPressed(Key.D))
                 movement.X += 1;
 
-            if (SystemAPI.Input.IsKeyPressed(Key.Space))
-                movement.Y += 1;
-
-            if (SystemAPI.Input.IsKeyPressed(Key.ShiftLeft))
-                movement.Y -= 1;
-
-            if (movement == Vector3.Zero)
+            if (_isFlying)
             {
-                movementComponent.Velocity = Vector3.Zero;
-                continue;
+                if (SystemAPI.Input.IsKeyPressed(Key.Space))
+                    movement.Y += 1;
+
+                if (SystemAPI.Input.IsKeyPressed(Key.ShiftLeft))
+                    movement.Y -= 1;
+            }
+            else
+            {
+                movementComponent.Velocity.Y -= (float)(Gravity * deltaTime);
             }
 
-            movement = Vector3.Normalize(movement);
+            if (movement.X != 0 || movement.Z != 0)
+            {
+                Vector2 horizontal = Vector2.Normalize(new(movement.X, movement.Z));
 
-            float yaw = transform.Rotation.Y;
+                float yaw = transform.Rotation.Y;
+                float sin = MathF.Sin(yaw);
+                float cos = MathF.Cos(yaw);
 
-            float sin = MathF.Sin(yaw);
-            float cos = MathF.Cos(yaw);
+                Vector3 direction = new(horizontal.X * cos + horizontal.Y * sin, 0, -horizontal.X * sin + horizontal.Y * cos);
 
-            movement = new Vector3(movement.X * cos + movement.Z * sin, movement.Y, -movement.X * sin + movement.Z * cos);
+                float speed = (float)(_isSprintPressed ? Speed + 5 : Speed);
 
-            float speed = _isSprintPressed ? Speed + 5 : Speed;
+                movementComponent.Velocity.X = direction.X * speed;
+                movementComponent.Velocity.Z = direction.Z * speed;
+            }
+            else
+            {
+                movementComponent.Velocity.X = 0;
+                movementComponent.Velocity.Z = 0;
+            }
 
-            movementComponent.Velocity = movement * speed;
+            if (_isFlying)
+            {
+                movementComponent.Velocity.Y = movement.Y * (float)(_isSprintPressed ? Speed + 5 : Speed);
+            }
         }
     }
 }

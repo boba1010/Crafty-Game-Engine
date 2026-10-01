@@ -9,24 +9,27 @@ using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public struct CollisionSystem() : ISystem
+public sealed class CollisionSystem : ISystem
 {
     public void Update(ref Scene scene, double deltaTime)
     {
-        //var stopwatch = Stopwatch.StartNew();
-
         foreach (var entity in scene.GetEntitiesWith<Transform>())
         {
-            if (!scene.HasComponent<Collider>(entity) && !scene.HasComponent<Movement>(entity))
+            if (!scene.HasComponent<Collider>(entity) || !scene.HasComponent<Movement>(entity))
                 continue;
 
+            ref var movement = ref scene.GetComponent<Movement>(entity);
             ref var transform = ref scene.GetComponent<Transform>(entity);
-            ref var collider = ref scene.GetComponent<Collider>(entity);
+            //if (movement.IsFlying)
+            //{
+            //    transform.Position += movement.Velocity * (float)deltaTime;
+            //    continue;
+            //}
 
+            ref var collider = ref scene.GetComponent<Collider>(entity);
             collider.IsGrounded = false;
             collider.IsColliding = false;
 
-            ref var movement = ref scene.GetComponent<Movement>(entity);
             Vector3 displacement = movement.Velocity * (float)deltaTime;
 
             int steps = Math.Max(1, (int)MathF.Ceiling(displacement.Length()));
@@ -36,17 +39,14 @@ public struct CollisionSystem() : ISystem
             {
                 transform.Position += step;
 
-                ResolveAxis(ref transform.Position, ref collider, Vector3.UnitX);
-                ResolveAxis(ref transform.Position, ref collider, Vector3.UnitY);
-                ResolveAxis(ref transform.Position, ref collider, Vector3.UnitZ);
+                ResolveAxis(ref transform.Position, ref collider, ref movement, Vector3.UnitY);
+                ResolveAxis(ref transform.Position, ref collider, ref movement, Vector3.UnitX);
+                ResolveAxis(ref transform.Position, ref collider, ref movement, Vector3.UnitZ);
             }
         }
-
-        //stopwatch.Stop();
-        //Console.WriteLine($"Collision Update loop took: {stopwatch.Elapsed.TotalMilliseconds:F4} ms");
     }
 
-    private void ResolveAxis(ref Vector3 position, ref Collider collider, Vector3 axis)
+    private void ResolveAxis(ref Vector3 position, ref Collider collider, ref Movement movement, Vector3 axis)
     {
         var min = collider.GetMin(position);
         var max = collider.GetMax(position);
@@ -61,19 +61,10 @@ public struct CollisionSystem() : ISystem
 
         for (int y = minY; y <= maxY; y++)
         {
-            if (y < 0)
-                continue;
-
             for (int z = minZ; z <= maxZ; z++)
             {
-                if (z < 0)
-                    continue;
-
                 for (int x = minX; x <= maxX; x++)
                 {
-                    if (x < 0)
-                        continue;
-
                     foreach (var box in GetCollisionBoxes(x, y, z))
                     {
                         var blockMin = new Vector3(box.MinX, box.MinY, box.MinZ);
@@ -83,9 +74,7 @@ public struct CollisionSystem() : ISystem
                         if (!Intersects(min, max, blockMin, blockMax))
                             continue;
 
-                        Console.WriteLine($"Collision: {axis} | Player={position} | Block={blockMin}->{blockMax}");
-
-                        Resolve(ref position, ref collider, axis, blockMin, blockMax);
+                        Resolve(ref position, ref collider, ref movement, axis, blockMin, blockMax);
 
                         min = collider.GetMin(position);
                         max = collider.GetMax(position);
@@ -116,36 +105,50 @@ public struct CollisionSystem() : ISystem
                minA.Z < maxB.Z && maxA.Z > minB.Z;
     }
 
-    private static void Resolve(ref Vector3 position, ref Collider collider, Vector3 axis, Vector3 blockMin, Vector3 blockMax)
+    private static void Resolve(ref Vector3 position, ref Collider collider, ref Movement movement, Vector3 axis, Vector3 blockMin, Vector3 blockMax)
     {
         var min = collider.GetMin(position);
         var max = collider.GetMax(position);
 
         if (axis == Vector3.UnitX)
         {
-            if (max.X - blockMin.X < blockMax.X - min.X)
+            if (movement.Velocity.X > 0 && max.X > blockMin.X)
+            {
                 position.X -= max.X - blockMin.X;
-            else
+                movement.Velocity.X = 0;
+            }
+            else if (movement.Velocity.X < 0 && min.X < blockMax.X)
+            {
                 position.X += blockMax.X - min.X;
+                movement.Velocity.X = 0;
+            }
         }
         else if (axis == Vector3.UnitY)
         {
-            if (max.Y - blockMin.Y < blockMax.Y - min.Y)
+            if (movement.Velocity.Y > 0)
             {
                 position.Y -= max.Y - blockMin.Y;
-                collider.IsGrounded = true;
+                movement.Velocity.Y = 0;
             }
-            else
+            else if (movement.Velocity.Y < 0)
             {
                 position.Y += blockMax.Y - min.Y;
+                movement.Velocity.Y = 0;
+                collider.IsGrounded = true;
             }
         }
-        else
+        else if (axis == Vector3.UnitZ)
         {
-            if (max.Z - blockMin.Z < blockMax.Z - min.Z)
+            if (movement.Velocity.Z > 0)
+            {
                 position.Z -= max.Z - blockMin.Z;
-            else
+                movement.Velocity.Z = 0;
+            }
+            else if (movement.Velocity.Z < 0)
+            {
                 position.Z += blockMax.Z - min.Z;
+                movement.Velocity.Z = 0;
+            }
         }
     }
 }

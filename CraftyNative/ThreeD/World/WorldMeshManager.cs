@@ -41,19 +41,102 @@ public static class WorldMeshManager
         return _sections.TryGetValue(coordinate, out section);
     }
 
-    public static IEnumerable<WorldMeshSection> GetVisibleSections(Vector3 cameraPosition)
+    private static WorldMeshSection?[] _visibleSectionsBuffer = new WorldMeshSection?[1024];
+    public static int GetVisibleSections(Vector3 cameraPosition, out WorldMeshSection?[] visibleSections)
     {
+        int sectionSize = SectionCoordinate.SectionSize;
+        int chunkSize = SectionCoordinate.ChunkSize;
+        int sectionsPerChunk = chunkSize / sectionSize;
+        int radius = (int)MathF.Ceiling(RenderDistance / sectionSize);
+
+        int cameraWorldSectionX = (int)MathF.Floor(cameraPosition.X / sectionSize);
+        int cameraSectionY = (int)MathF.Floor(cameraPosition.Y / sectionSize);
+        int cameraWorldSectionZ = (int)MathF.Floor(cameraPosition.Z / sectionSize);
+
         float renderDistanceSquared = RenderDistance * RenderDistance;
+        float halfSection = sectionSize * 0.5f;
+        int diameter = radius * 2 + 1;
+        int maxCapacity = diameter * diameter * SectionCoordinate.SectionsY;
 
-        foreach (var section in _sections.Values)
+        if (_visibleSectionsBuffer.Length < maxCapacity)
+            Array.Resize(ref _visibleSectionsBuffer, maxCapacity);
+
+        int count = 0;
+
+        for (int x = -radius; x <= radius; x++)
         {
-            Vector3 delta = section.Bounds.Center - cameraPosition;
+            int worldSectionX = cameraWorldSectionX + x;
+            float centerX = worldSectionX * sectionSize + halfSection;
+            float dx = centerX - cameraPosition.X;
+            float dxSquared = dx * dx;
 
-            if (delta.LengthSquared() > renderDistanceSquared)
+            if (dxSquared > renderDistanceSquared)
                 continue;
 
-            yield return section;
+            for (int z = -radius; z <= radius; z++)
+            {
+                int worldSectionZ = cameraWorldSectionZ + z;
+                float centerZ = worldSectionZ * sectionSize + halfSection;
+                float dz = centerZ - cameraPosition.Z;
+                float horizontalDistanceSquared = dxSquared + dz * dz;
+
+                if (horizontalDistanceSquared > renderDistanceSquared)
+                    continue;
+
+                float verticalRadius = MathF.Sqrt(
+                    renderDistanceSquared - horizontalDistanceSquared);
+
+                int minY = Math.Max(
+                    0,
+                    (int)MathF.Floor(
+                        (cameraPosition.Y - verticalRadius) / sectionSize));
+
+                int maxY = Math.Min(
+                    SectionCoordinate.SectionsY - 1,
+                    (int)MathF.Ceiling(
+                        (cameraPosition.Y + verticalRadius) / sectionSize));
+
+                int chunkX = Math.DivRem(
+                    worldSectionX,
+                    sectionsPerChunk,
+                    out int localSectionX);
+
+                int chunkZ = Math.DivRem(
+                    worldSectionZ,
+                    sectionsPerChunk,
+                    out int localSectionZ);
+
+                if (localSectionX < 0)
+                {
+                    localSectionX += sectionsPerChunk;
+                    chunkX--;
+                }
+
+                if (localSectionZ < 0)
+                {
+                    localSectionZ += sectionsPerChunk;
+                    chunkZ--;
+                }
+
+                for (int sectionY = minY; sectionY <= maxY; sectionY++)
+                {
+                    var coordinate = new SectionCoordinate(
+                        chunkX,
+                        chunkZ,
+                        localSectionX,
+                        sectionY,
+                        localSectionZ);
+
+                    if (!_sections.TryGetValue(coordinate, out var section))
+                        continue;
+
+                    _visibleSectionsBuffer[count++] = section;
+                }
+            }
         }
+
+        visibleSections = _visibleSectionsBuffer;
+        return count;
     }
 
     public static void Clear()

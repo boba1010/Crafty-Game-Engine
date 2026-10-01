@@ -11,6 +11,9 @@ public static class WorldIOManager
     {
         var path = Path.Combine(WorldPath, $"{world.Name}.world");
 
+        if (File.Exists(path))
+            return;
+
         var fs = File.Open(path, FileMode.CreateNew);
         using var compression = new DeflateStream(fs, CompressionMode.Compress);
         using var writer = new BinaryWriter(compression);
@@ -74,7 +77,7 @@ public static class WorldIOManager
             int blockZ = (i / 417) % Chunk.Size;
             int y = i % 417;
 
-            chunk.Blocks.Add(new(id, (byte)blockX, (ushort)y, (byte)blockZ));
+            chunk.Blocks.Add(new(id, (byte)blockX, (short)y, (byte)blockZ));
         }
 
         return chunk;

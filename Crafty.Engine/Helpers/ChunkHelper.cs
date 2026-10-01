@@ -7,6 +7,9 @@ public static class ChunkHelper
 {
     public static ushort GetBlockIdByGlobalPosition(int x, int y, int z)
     {
+        if ((uint)y >= 416)
+            return 0;
+
         int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
         int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
 
