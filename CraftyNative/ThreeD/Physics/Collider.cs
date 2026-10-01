@@ -8,14 +8,12 @@ public struct Collider : IComponent
     public Vector3 Size;
     public Vector3 Offset;
 
-    public bool IsGrounded;
     public bool IsColliding;
 
     public Collider(Vector3 size)
     {
         Size = size;
         Offset = Vector3.Zero;
-        IsGrounded = false;
         IsColliding = false;
     }
 
@@ -23,7 +21,6 @@ public struct Collider : IComponent
     {
         Size = size;
         Offset = offset;
-        IsGrounded = false;
         IsColliding = false;
     }
 

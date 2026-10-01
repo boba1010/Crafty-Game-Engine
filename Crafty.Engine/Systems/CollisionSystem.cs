@@ -20,14 +20,9 @@ public sealed class CollisionSystem : ISystem
 
             ref var movement = ref scene.GetComponent<Movement>(entity);
             ref var transform = ref scene.GetComponent<Transform>(entity);
-            //if (movement.IsFlying)
-            //{
-            //    transform.Position += movement.Velocity * (float)deltaTime;
-            //    continue;
-            //}
 
             ref var collider = ref scene.GetComponent<Collider>(entity);
-            collider.IsGrounded = false;
+            movement.IsGrounded = false;
             collider.IsColliding = false;
 
             Vector3 displacement = movement.Velocity * (float)deltaTime;
@@ -134,7 +129,7 @@ public sealed class CollisionSystem : ISystem
             {
                 position.Y += blockMax.Y - min.Y;
                 movement.Velocity.Y = 0;
-                collider.IsGrounded = true;
+                movement.IsGrounded = true;
             }
         }
         else if (axis == Vector3.UnitZ)

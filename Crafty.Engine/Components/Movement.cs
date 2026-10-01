@@ -7,4 +7,5 @@ public struct Movement : IComponent
 {
     public Vector3 Velocity;
     public bool IsFlying;
+    public bool IsGrounded;
 }

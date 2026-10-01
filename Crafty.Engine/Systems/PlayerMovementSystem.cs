@@ -12,6 +12,7 @@ public sealed class PlayerMovementSystem : ISystem
 {
     public double Speed { get; set; } = 10;
     public double Gravity {get;set;} = 30;
+    public double JumpForce { get; set; } = 10;
     private bool _isSprintPressed;
     private bool _isFlying = true;
 
@@ -81,6 +82,12 @@ public sealed class PlayerMovementSystem : ISystem
             else
             {
                 movementComponent.Velocity.Y -= (float)(Gravity * deltaTime);
+
+                if (SystemAPI.Input.IsKeyPressed(Key.Space) && movementComponent.IsGrounded)
+                {
+                    movementComponent.Velocity.Y = (float)JumpForce;
+                    movementComponent.IsGrounded = false;
+                }
             }
 
             if (movement.X != 0 || movement.Z != 0)
