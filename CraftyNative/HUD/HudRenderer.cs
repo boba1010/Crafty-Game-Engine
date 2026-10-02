@@ -14,6 +14,8 @@ public static class HudRenderer
 
     public static void Render(ICommandBuffer commandBuffer, Vector2 size)
     {
+        Hotbar.Resize(size);
+
         Crosshair.Render(commandBuffer);
         Hotbar.Render(commandBuffer);
     }

@@ -1,7 +1,9 @@
-﻿using System.Numerics;
+﻿using CraftyNative.ThreeD.Meshes;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Vulcan;
 using Vulcan.Graphics;
+using Renderer = CraftyNative.CraftyNative;
 
 namespace CraftyNative.HUD;
 
@@ -19,6 +21,10 @@ public static class Hotbar
     private static float[] vertices = [];
     private static Vector2 _size;
     private static int _selectedSlot = 0;
+    private static readonly Mesh?[] _slotMeshes = new Mesh?[SlotCount];
+    private static readonly string[] _slotKeys = new string[SlotCount];
+    private static readonly Dictionary<Mesh, (Vector3 Center, float Scale)> _bounds = new();
+    private static int _keyVersion;
 
     private const int FloatsPerVertex = 6; // x, y, r, g, b, a
     private const int SlotCount = 9;
@@ -29,6 +35,7 @@ public static class Hotbar
     private const float Radius = Height / 2f;
     private const int Segments = 24;
     private const float SlotSize = 40f;
+    private const float MeshSize = SlotSize * 0.8f;
 
     public static int SelectedSlot => _selectedSlot;
 
@@ -219,6 +226,72 @@ public static class Hotbar
         vertices = [.. list];
     }
 
+    // Slot center in pixels, origin top-left (matches BuildVertices layout)
+    private static Vector2 GetSlotCenterPx(int slot)
+    {
+        float t = slot / (float)(SlotCount - 1);
+        float left = _size.X * 0.5f - Width * 0.5f + Radius;
+        float right = _size.X * 0.5f + Width * 0.5f - Radius;
+
+        return new Vector2(
+            left + (right - left) * t,
+            _size.Y - Margin - Height * 0.5f);
+    }
+
+    // Center + uniform scale so any mesh fits a unit cube.
+    // Assumes position is the first 3 floats of each vertex.
+    private static (Vector3 Center, float Scale) GetBounds(Mesh mesh)
+    {
+        if (_bounds.TryGetValue(mesh, out var cached))
+            return cached;
+
+        int floatsPerVertex = Math.Max(3, (int)mesh.VertexStride / sizeof(float));
+        var min = new Vector3(float.MaxValue);
+        var max = new Vector3(float.MinValue);
+
+        for (int i = 0; i + 2 < mesh.Vertices.Count; i += floatsPerVertex)
+        {
+            var p = new Vector3(mesh.Vertices[i], mesh.Vertices[i + 1], mesh.Vertices[i + 2]);
+            min = Vector3.Min(min, p);
+            max = Vector3.Max(max, p);
+        }
+
+        var size = max - min;
+        float extent = MathF.Max(size.X, MathF.Max(size.Y, size.Z));
+
+        var result = ((min + max) * 0.5f, extent > 0f ? 1f / extent : 1f);
+        _bounds[mesh] = result;
+        return result;
+    }
+
+    // Isometric view of the mesh, normalized to a unit cube centered on the slot.
+    private static Matrix4x4 BuildSlotMvp(Mesh mesh)
+    {
+        var (center, scale) = GetBounds(mesh);
+
+        var model =
+            Matrix4x4.CreateTranslation(-center) *
+            Matrix4x4.CreateScale(scale) *
+            Matrix4x4.CreateRotationY(MathF.PI / 4f) *
+            Matrix4x4.CreateRotationX(MathF.PI / 6f) *
+            Matrix4x4.CreateTranslation(0f, 0f, -5f);
+
+        var proj = Matrix4x4.CreateOrthographic(1.8f, 1.8f, 0.1f, 10f);
+
+        // Same row-vector convention as the main pass, so no transpose
+        return model * proj;
+    }
+
+    public static void Resize(Vector2 size)
+    {
+        if (size == _size || _vertexBuffer == null)
+            return;
+
+        _size = size;
+        BuildVertices();
+        _vertexBuffer.Upload(MemoryMarshal.AsBytes(vertices.AsSpan()));
+    }
+
     public static void SetSelectedSlot(int slot)
     {
         if ((uint)slot >= SlotCount || slot == _selectedSlot)
@@ -233,6 +306,17 @@ public static class Hotbar
         _vertexBuffer.Upload(MemoryMarshal.AsBytes(vertices.AsSpan()));
     }
 
+    // materialKey: pass a stable key per block type so identical blocks share one cached texture.
+    // If omitted, a unique key is generated per assignment (safe, but uploads a texture each time).
+    public static void SetSlot(int slot, Mesh? mesh, string? materialKey = null)
+    {
+        if ((uint)slot >= SlotCount)
+            return;
+
+        _slotMeshes[slot] = mesh;
+        _slotKeys[slot] = materialKey ?? $"hotbar_{slot}_{++_keyVersion}";
+    }
+
     // For the scroll wheel: +1 / -1, wraps around
     public static void CycleSlot(int delta)
     {
@@ -244,8 +328,49 @@ public static class Hotbar
     {
         commandBuffer.SetPipeline(_pipeline);
         commandBuffer.SetVertexBuffer(_vertexBuffer, sizeof(float) * FloatsPerVertex);
-
         commandBuffer.Draw((uint)(vertices.Length / FloatsPerVertex));
+
+        bool any = false;
+
+        for (int i = 0; i < SlotCount; i++)
+        {
+            var mesh = _slotMeshes[i];
+            if (mesh == null || mesh.Vertices.Count == 0 || mesh.Indices.Count == 0)
+                continue;
+
+            if (!any)
+            {
+                commandBuffer.ClearDepth(1f);
+                any = true;
+            }
+
+            var c = GetSlotCenterPx(i);
+
+            commandBuffer.SetViewport(new Viewport
+            {
+                X = c.X - MeshSize * 0.5f,
+                Y = c.Y - MeshSize * 0.5f,
+                Width = MeshSize,
+                Height = MeshSize,
+                MinDepth = 0,
+                MaxDepth = 1
+            });
+
+            Renderer.DrawHudMesh(mesh, BuildSlotMvp(mesh), _slotKeys[i]);
+        }
+
+        if (any)
+        {
+            commandBuffer.SetViewport(new Viewport
+            {
+                X = 0,
+                Y = 0,
+                Width = _size.X,
+                Height = _size.Y,
+                MinDepth = 0,
+                MaxDepth = 1
+            });
+        }
     }
 
     public static void Dispose()
@@ -258,5 +383,7 @@ public static class Hotbar
         _depthStencilState?.Dispose();
         _blendState?.Dispose();
         _pipeline?.Dispose();
+
+        _bounds.Clear();
     }
 }

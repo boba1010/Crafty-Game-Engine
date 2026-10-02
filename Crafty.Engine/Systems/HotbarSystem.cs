@@ -2,12 +2,16 @@
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
+using CraftyNative.ThreeD.Meshes;
 
 namespace Crafty.Engine.Systems;
 
 public sealed class HotbarSystem : ISystem
 {
+    private const int SlotCount = 9;
     private int _selectedSlot;
+    private readonly ushort?[] _shownBlocks = new ushort?[SlotCount];
+    private readonly Dictionary<int, Mesh> _blockMeshes = [];
 
     public HotbarSystem()
     {
@@ -43,6 +47,31 @@ public sealed class HotbarSystem : ISystem
         {
             ref var hotbar = ref scene.GetComponent<Hotbar>(entity);
             hotbar.SelectedSlot = _selectedSlot;
+
+            for (int i = 0; i < SlotCount; i++)
+            {
+                ushort? blockId = hotbar.Slots[i].BlockId is { } id ? (ushort)id : null;
+
+                if (blockId == _shownBlocks[i])
+                    continue;
+
+                _shownBlocks[i] = blockId;
+
+                if (blockId is ushort block)
+                    CraftyNative.HUD.Hotbar.SetSlot(i, GetBlockMesh(block), $"hotbar_block_{block}");
+                else
+                    CraftyNative.HUD.Hotbar.SetSlot(i, null);
+            }
         }
+    }
+
+    private Mesh GetBlockMesh(ushort blockId)
+    {
+        if (_blockMeshes.TryGetValue(blockId, out var cached))
+            return cached;
+
+        var mesh = MeshBuilder.BuildBlockMesh(blockId);
+        _blockMeshes[blockId] = mesh;
+        return mesh;
     }
 }

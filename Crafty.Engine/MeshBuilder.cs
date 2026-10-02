@@ -2,7 +2,6 @@
 using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
 using Crafty.SDK.Client.Blocks;
-using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.World;
 
@@ -179,6 +178,27 @@ public static class MeshBuilder
         indices.Add(i);
         indices.Add(i + 2);
         indices.Add(i + 3);
+    }
+
+    public static Mesh BuildBlockMesh(ushort blockId)
+    {
+        var model = GameAPIs.BlockRegistry.Get(blockId).Model;
+
+        var textures = new HashSet<string>();
+        foreach (var face in model.Faces)
+            textures.Add(face.Texture);
+
+        if (textures.Count == 0)
+            return new Mesh([], [], vertexStride: 20);
+
+        var atlas = ChunkTextureAtlasBuilder.Build(textures, 32);
+        var mesh = new MeshData();
+
+        // One block at the origin, all six faces (no neighbours to cull against)
+        foreach (var face in Enum.GetValues<Face>())
+            AddBlockFace(ref mesh, 0, 0, 0, face, model, atlas);
+
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
     }
 
     private static void AddVertex(ref MeshData mesh, float x, float y, float z, float u, float v)

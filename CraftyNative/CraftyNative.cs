@@ -386,6 +386,13 @@ internal unsafe static class CraftyNative
         _commandBuffer.DrawIndexed((uint)mesh.Indices.Count, 1, 0);
     }
 
+    internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp, string materialId)
+    {
+        // The HUD pipeline is bound when we get here; switch back to the textured 3D one
+        _commandBuffer.SetPipeline(_pipeline);
+        DrawMesh(mesh, mvp, materialId);
+    }
+
     public static void Dispose()
     {
         HudRenderer.Dispose();
