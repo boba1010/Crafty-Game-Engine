@@ -388,6 +388,8 @@ internal unsafe static class CraftyNative
 
     public static void Dispose()
     {
+        HudRenderer.Dispose();
+
         _depthTexture?.Dispose();
         _constantBuffer?.Dispose();
         _vertexShader?.Dispose();

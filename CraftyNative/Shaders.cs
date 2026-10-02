@@ -3,7 +3,7 @@ using Silk.NET.Direct3D.Compilers;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace CraftyNative.ThreeD;
+namespace CraftyNative;
 
 public unsafe static class Shaders
 {
