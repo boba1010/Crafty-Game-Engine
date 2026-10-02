@@ -1,6 +1,4 @@
-﻿using CraftyNative.ThreeD;
-
-namespace CraftyNative.Scenes;
+﻿namespace CraftyNative.Scenes;
 
 public sealed class GameWorld : IDisposable
 {
@@ -8,7 +6,7 @@ public sealed class GameWorld : IDisposable
 
     public GameWorld(Window window)
     {
-        CraftyNative3D.Initialize(window.NativeWindow);
+        CraftyNative.Initialize(window.NativeWindow);
     }
 
     public void Render(double deltaTime)
@@ -18,11 +16,11 @@ public sealed class GameWorld : IDisposable
 
         WorldObject camera = Scene.GetEntitiesWith<Camera>().FirstOrDefault();
 
-        CraftyNative3D.Render(ref Scene, camera);
+        CraftyNative.Render(ref Scene, camera);
     }
 
     public void Dispose()
     {
-        CraftyNative3D.Dispose();
+        CraftyNative.Dispose();
     }
 }

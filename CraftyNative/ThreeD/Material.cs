@@ -6,7 +6,7 @@ public sealed class Material : IDisposable
 
     public static Material Create(ImageData atlas)
     {
-        return CraftyNative3D.CreateMaterial(atlas);
+        return CraftyNative.CreateMaterial(atlas);
     }
 
     public void Dispose()

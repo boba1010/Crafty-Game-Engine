@@ -1,7 +1,8 @@
-﻿using CraftyNative.Scenes;
+﻿using CraftyNative.HUD;
+using CraftyNative.Scenes;
+using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using Silk.NET.Windowing;
-using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Vulcan;
@@ -9,9 +10,9 @@ using Vulcan.DirectX;
 using Vulcan.Graphics;
 using Vulcan.Graphics.Descriptions;
 
-namespace CraftyNative.ThreeD;
+namespace CraftyNative;
 
-internal unsafe static class CraftyNative3D
+internal unsafe static class CraftyNative
 {
     public static IWindow Window { get; private set; } = null!;
     public static IGraphicsDevice Device { get; private set; } = null!;
@@ -102,7 +103,7 @@ internal unsafe static class CraftyNative3D
         Window = window;
         Device = Vulcan.Vulcan.CreateDevice(Window);
         Device.Initialize();
-
+        
         CreateSwapchain(false);
 
         var shaderSource = """
@@ -237,6 +238,8 @@ internal unsafe static class CraftyNative3D
         ((D3D11CommandBuffer)_commandBuffer).RenderTargetView = ((D3D11Swapchain)_swapchain).RenderTargetView;
         ((D3D11CommandBuffer)_commandBuffer).DepthStencilView = ((D3D11Texture)_depthTexture).DepthStencilView;
 
+        HudRenderer.Initialize(Device, new(Window.Size.X, Window.Size.Y));
+
         Window.FramebufferResize += newSize =>
         {
             if (newSize.X <= 0 || newSize.Y <= 0)
@@ -345,6 +348,8 @@ internal unsafe static class CraftyNative3D
 
             DrawMesh(renderable.Mesh, model * view * projection, objectId.ToString());
         }
+
+        HudRenderer.Render(_commandBuffer, new(size.X, size.Y));
 
         _commandBuffer.End();
 

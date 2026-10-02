@@ -1,5 +1,4 @@
-﻿using CraftyNative.ThreeD;
-using Silk.NET.Input;
+﻿using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using System.Numerics;
@@ -129,6 +128,6 @@ public abstract class Window : IDisposable
     public virtual void Dispose()
     {
         InputManager?.Dispose();
-        CraftyNative3D.Dispose();
+        CraftyNative.Dispose();
     }
 }
