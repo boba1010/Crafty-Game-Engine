@@ -1,4 +1,5 @@
 ﻿using Crafty.ChunkGeneration.World;
+using Crafty.SDK.World;
 using System.IO.Compression;
 
 namespace Crafty.ChunkGeneration.IO;
@@ -66,8 +67,9 @@ public static class WorldIOManager
         {
             X = x,
             Z = z,
-            Blocks = [],
         };
+
+        List<BlockPlacement> blocks = [];
 
         for (int i = 0; i < count; i++)
         {
@@ -77,9 +79,10 @@ public static class WorldIOManager
             int blockZ = (i / 417) % Chunk.Size;
             int y = i % 417;
 
-            chunk.Blocks.Add(new(id, (byte)blockX, (short)y, (byte)blockZ));
+            blocks.Add(new(id, (byte)blockX, (short)y, (byte)blockZ));
         }
 
+        chunk.Blocks = blocks;
         return chunk;
     }
 

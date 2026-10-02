@@ -1,5 +1,4 @@
 ﻿using Crafty.ChunkGeneration.World;
-using Crafty.Engine.Helpers;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
@@ -13,11 +12,11 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
     public float Reach { get; set; } = 6f;
     public float BreakCooldown { get; set; } = 0.15f;
     private float _breakCooldown;
+    public float PlaceCooldown { get; set; } = 0.15f;
+    private float _placeCooldown;
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        _breakCooldown -= (float)deltaTime;
-
         foreach (var entity in scene.GetEntitiesWith<Camera>())
         {
             ref var camera = ref scene.GetComponent<Camera>(entity);
@@ -29,18 +28,47 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
 
             Vector3 direction = new(-MathF.Cos(pitch) * MathF.Sin(yaw), MathF.Sin(pitch), -MathF.Cos(pitch) * MathF.Cos(yaw));
 
-            if (!SystemAPI.Input.IsMouseButtonDown(MouseButton.Left))
-                continue;
-
-            if (_breakCooldown > 0)
-                continue;
-
-            if (!VoxelRaycast.Raycast(cameraPosition, direction, Reach, IsSolid, out var hit))
-                continue;
-
-            world.SetBlock(hit.X, hit.Y, hit.Z, 0);
-            _breakCooldown = BreakCooldown;
+            HandleBlockBreak((float)deltaTime, cameraPosition, direction);
+            HandleBlockPlace((float)deltaTime, cameraPosition, direction);
         }
+    }
+
+    private void HandleBlockBreak(float deltaTime, Vector3 cameraPosition, Vector3 direction)
+    {
+        _breakCooldown -= deltaTime;
+
+        if (!SystemAPI.Input.IsMouseButtonDown(MouseButton.Left))
+            return;
+
+        if (_breakCooldown > 0)
+            return;
+
+        if (!VoxelRaycast.Raycast(cameraPosition, direction, Reach, IsSolid, out var hit))
+            return;
+
+        world.SetBlock(hit.X, hit.Y, hit.Z, 0);
+        _breakCooldown = BreakCooldown;
+    }
+
+    private void HandleBlockPlace(float deltaTime, Vector3 cameraPosition, Vector3 direction)
+    {
+        _placeCooldown -= deltaTime;
+
+        if (!SystemAPI.Input.IsMouseButtonDown(MouseButton.Right))
+            return;
+
+        if (_placeCooldown > 0)
+            return;
+
+        if (!VoxelRaycast.Raycast(cameraPosition, direction, Reach, IsSolid, out var hit))
+            return;
+
+        var x = hit.X + (int)hit.Normal.X;
+        var y = hit.Y + (int)hit.Normal.Y;
+        var z = hit.Z + (int)hit.Normal.Z;
+
+        world.SetBlock(x, y, z, 1);
+        _placeCooldown = PlaceCooldown;
     }
 
     private bool IsSolid(int x, int y, int z)
