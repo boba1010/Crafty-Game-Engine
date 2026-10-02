@@ -18,6 +18,9 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
 
     public void Update(ref Scene scene, double deltaTime)
     {
+        if (GameStateManager.IsPaused || GameStateManager.IsInventory)
+            return;
+
         var cameraObject = scene.GetEntitiesWith<Camera>().FirstOrDefault();
         var playerObject = scene.GetEntitiesWith<Player>().FirstOrDefault();
 

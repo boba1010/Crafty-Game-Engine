@@ -10,19 +10,23 @@ public static class HudRenderer
     {
         Crosshair.Initialize(device, size);
         Hotbar.Initialize(device, size);
+        Inventory.Initialize(device, size);
     }
 
     public static void Render(ICommandBuffer commandBuffer, Vector2 size)
     {
         Hotbar.Resize(size);
+        Inventory.Resize(size);
 
         Crosshair.Render(commandBuffer);
         Hotbar.Render(commandBuffer);
+        Inventory.Render(commandBuffer);
     }
 
     public static void Dispose()
     {
         Crosshair.Dispose();
         Hotbar.Dispose();
+        Inventory.Dispose();
     }
 }

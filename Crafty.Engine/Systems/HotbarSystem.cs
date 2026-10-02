@@ -20,6 +20,9 @@ public sealed class HotbarSystem : ISystem
 
     private void Input_KeyDown(Key key)
     {
+        if (GameStateManager.IsPaused || GameStateManager.IsInventory)
+            return;
+
         int slot = key switch
         {
             Key.Number1 => 0,

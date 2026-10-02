@@ -7,23 +7,20 @@ using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public class PlayerCameraSystem : ISystem
+public class PlayerCameraSystem
 {
     public bool IsMouseMoving { get; set; } = false;
     public float MouseSensitivity { get; set; } = 0.0025f;
     private float _yaw;
     private float _pitch;
 
-    public void Pause(bool paused)
+    public void Update(ref Scene scene)
     {
-        SystemAPI.Input.CursorMode = paused ? Cursor.Normal : Cursor.Raw;
-        SystemAPI.Input.CenterMouse(SystemAPI.WindowSize);
-    }
-
-    public void Update(ref Scene scene, double deltaTime)
-    {
-        if (!IsMouseMoving)
+        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
             return;
+
+        //if (!IsMouseMoving)
+        //    return;
 
         var delta = InputManager.MouseDelta;
 

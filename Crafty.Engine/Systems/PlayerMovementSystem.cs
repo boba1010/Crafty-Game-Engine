@@ -24,6 +24,9 @@ public sealed class PlayerMovementSystem : ISystem
 
     private void Input_KeyUp(Key key)
     {
+        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
+            return;
+
         if (key is Key.ControlLeft)
             _isSprintPressed = !_isSprintPressed;
     }
@@ -31,6 +34,9 @@ public sealed class PlayerMovementSystem : ISystem
 
     private void Input_KeyDown(Key key)
     {
+        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
+            return;
+
         if (key is Key.Space && IsDoublePressed())
             _isFlying = !_isFlying;
     }
@@ -50,6 +56,9 @@ public sealed class PlayerMovementSystem : ISystem
 
     public void Update(ref Scene scene, double deltaTime)
     {
+        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
+            return;
+
         foreach (var player in scene.GetEntitiesWith<Player>())
         {
             ref var transform = ref scene.GetComponent<Transform>(player);

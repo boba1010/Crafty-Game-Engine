@@ -20,7 +20,6 @@ public sealed class MainWindow : Window
     public PlayerCameraSystem CameraSystem;
     
     private GameWorld _world = null!;
-    private bool _isPaused = true;
     
     public MainWindow()
     {
@@ -30,6 +29,8 @@ public sealed class MainWindow : Window
         var seed = WorldSeed.Generate();
         ChunkLoader.WorldGenService = new WorldGenService(ChunkLoader.WorldDirectory, seed);
 
+        GameAPIs.Initialize();
+        
         CameraSystem = new();
 
         Activated += Window_Activated;
@@ -40,7 +41,7 @@ public sealed class MainWindow : Window
     {
         if (!focused)
         {
-            _isPaused = true;
+            GameStateManager.Set(GameState.Paused);
             InputManager.CursorMode = Cursor.Normal;
             return;
         }
@@ -48,30 +49,28 @@ public sealed class MainWindow : Window
 
     protected override void OnMouseMove(Vector2 position)
     {
-        if (_isPaused)
+        if (GameStateManager.IsPaused)
             return;
+
+        if (GameStateManager.IsInventory)
+        {
+            CraftyNative.HUD.Inventory.SetCursor(position);
+            return;
+        }
 
         CameraSystem.IsMouseMoving = true;
-        CameraSystem.Update(ref _world.Scene, 0);
+        CameraSystem.Update(ref _world.Scene);
         CameraSystem.IsMouseMoving = false;
-    }
-
-    protected override void OnKeyDown(Key key)
-    {
-        if (key != Key.Escape)
-            return;
-        _isPaused = !_isPaused;
-        CameraSystem.Pause(_isPaused);
     }
 
     private void Window_Activated(object? sender, EventArgs e)
     {
-        GameAPIs.Initialize();
-
         _world = new(this)
         {
             Scene = new()
         };
+
+        GameStateManager.Initialize();
 
         var camera = _world.Scene.CreateObject();
 
@@ -103,9 +102,9 @@ public sealed class MainWindow : Window
         hotbar.Slots[1] = new(2, 1, 2);
         hotbar.Slots[2] = new(2, 1, 3);
 
-        _world.Scene.Systems.Add(CameraSystem);
         _world.Scene.Systems.Add(new PlayerMovementSystem());
         _world.Scene.Systems.Add(new HotbarSystem());
+        _world.Scene.Systems.Add(new InventorySystem());
         _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
         _world.Scene.Systems.Add(new CollisionSystem());
         _world.Scene.Systems.Add(new PlayerBlockInteractionSystem(world));

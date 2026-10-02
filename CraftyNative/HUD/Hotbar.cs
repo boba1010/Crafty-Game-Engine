@@ -373,6 +373,37 @@ public static class Hotbar
         }
     }
 
+    public static void DrawMeshInRect(ICommandBuffer commandBuffer, Mesh mesh, string materialKey, Vector2 center, float size)
+    {
+        commandBuffer.SetViewport(new Viewport
+        {
+            X = center.X - size * 0.5f,
+            Y = center.Y - size * 0.5f,
+            Width = size,
+            Height = size,
+            MinDepth = 0,
+            MaxDepth = 1
+        });
+
+        Renderer.DrawHudMesh(mesh, BuildSlotMvp(mesh), materialKey);
+    }
+
+    public static Mesh? GetSlotMesh(int slot)
+    {
+        if ((uint)slot >= SlotCount)
+            return null;
+
+        return _slotMeshes[slot];
+    }
+
+    public static string GetSlotKey(int slot)
+    {
+        if ((uint)slot >= SlotCount)
+            return string.Empty;
+
+        return _slotKeys[slot];
+    }
+
     public static void Dispose()
     {
         _vertexBuffer?.Dispose();
