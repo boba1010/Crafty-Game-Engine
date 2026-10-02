@@ -76,7 +76,7 @@ public sealed class MainWindow : Window
 
         _world.Scene.AddComponent(camera, new Transform
         {
-            LocalPosition = new(0, 1.8f, 0)
+            LocalPosition = new(0, 0.7f, 0)
         });
         _world.Scene.AddComponent(camera, new Camera
         {
