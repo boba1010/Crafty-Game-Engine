@@ -16,16 +16,21 @@ public static class Hotbar
     private static IBlendState _blendState = null!;
     private static IPipeline _pipeline = null!;
 
-    private static List<float> vertices = [];
+    private static float[] vertices = [];
+    private const int FloatsPerVertex = 6; // x, y, r, g, b, a
+    private const int SlotCount = 9;
+    private const int SelectedSlot = 0; // which slot is highlighted
 
     public static void Initialize(IGraphicsDevice device, Vector2 size)
     {
+        const float margin = 20f;
+        const float width = 400f;
         const float height = 50f;
-        const float width = 500f;
-        const float radius = height / 2f;   // full pill, like border-radius: 250px on a 50px box
-        const int segments = 24;            // smoothness of each cap
+        const float radius = height / 2f;
+        const int segments = 24;
 
-        // pixels -> NDC (NDC spans 2 units across the screen)
+        const float slotSize = 40f;
+
         float sx = 2f / size.X;
         float sy = 2f / size.Y;
 
@@ -34,46 +39,74 @@ public static class Hotbar
         float radiusX = radius * sx;
         float radiusY = radius * sy;
 
-        float centerY = -1f + halfHeight + 0.05f;
+        float centerY = -1f + halfHeight + margin * sy;
 
         float leftCenter = -halfWidth + radiusX;
         float rightCenter = halfWidth - radiusX;
 
-        // Main body (full height, between the two cap centers)
-        vertices.AddRange(
-        [
-            leftCenter,  centerY - halfHeight,
-            rightCenter, centerY - halfHeight,
-            rightCenter, centerY + halfHeight,
+        var list = new List<float>();
 
-            leftCenter,  centerY - halfHeight,
-            rightCenter, centerY + halfHeight,
-            leftCenter,  centerY + halfHeight,
-        ]);
+        void V(float x, float y, Vector4 c) => list.AddRange([x, y, c.X, c.Y, c.Z, c.W]);
 
-        // Semicircle cap as a triangle fan
-        void AddCap(float cx, float startAngle)
+        void Quad(float x0, float y0, float x1, float y1, Vector4 c)
+        {
+            V(x0, y0, c); V(x1, y0, c); V(x1, y1, c);
+            V(x0, y0, c); V(x1, y1, c); V(x0, y1, c);
+        }
+
+        void Cap(float cx, float startAngle, Vector4 c)
         {
             for (int i = 0; i < segments; i++)
             {
                 float a0 = startAngle + MathF.PI * i / segments;
                 float a1 = startAngle + MathF.PI * (i + 1) / segments;
 
-                vertices.AddRange(
-                [
-                    cx, centerY,
-                    cx + MathF.Cos(a0) * radiusX, centerY + MathF.Sin(a0) * radiusY,
-                    cx + MathF.Cos(a1) * radiusX, centerY + MathF.Sin(a1) * radiusY,
-                ]);
+                V(cx, centerY, c);
+                V(cx + MathF.Cos(a0) * radiusX, centerY + MathF.Sin(a0) * radiusY, c);
+                V(cx + MathF.Cos(a1) * radiusX, centerY + MathF.Sin(a1) * radiusY, c);
             }
         }
 
-        AddCap(leftCenter, MathF.PI * 0.5f);    // 90°  -> 270°
-        AddCap(rightCenter, -MathF.PI * 0.5f);  // -90° -> 90°
+        void Circle(float cx, float cy, float rx, float ry, Vector4 c, int segs = 32)
+        {
+            for (int i = 0; i < segs; i++)
+            {
+                float a0 = MathF.PI * 2f * i / segs;
+                float a1 = MathF.PI * 2f * (i + 1) / segs;
+
+                V(cx, cy, c);
+                V(cx + MathF.Cos(a0) * rx, cy + MathF.Sin(a0) * ry, c);
+                V(cx + MathF.Cos(a1) * rx, cy + MathF.Sin(a1) * ry, c);
+            }
+        }
+
+        var bgColor = new Vector4(0.05f, 0.05f, 0.05f, 0.9f);
+        var slotColor = new Vector4(0.35f, 0.35f, 0.35f, 1f);
+        var selectedColor = new Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+        // Pill background
+        Quad(leftCenter, centerY - halfHeight, rightCenter, centerY + halfHeight, bgColor);
+        Cap(leftCenter, MathF.PI * 0.5f, bgColor);
+        Cap(rightCenter, -MathF.PI * 0.5f, bgColor);
+
+        // Slots, spread across the whole pill
+        float slotHalfX = slotSize * 0.5f * sx;
+        float slotHalfY = slotSize * 0.5f * sy;
+
+        for (int i = 0; i < SlotCount; i++)
+        {
+            float t = i / (float)(SlotCount - 1);
+            float cx = leftCenter + (rightCenter - leftCenter) * t;
+            var color = i == SelectedSlot ? selectedColor : slotColor;
+
+            Circle(cx, centerY, slotHalfX, slotHalfY, color);
+        }
+
+        vertices = [.. list];
 
         _vertexBuffer = device.CreateBuffer(new()
         {
-            Size = (ulong)(vertices.Count * sizeof(float)),
+            Size = (ulong)(vertices.Length * sizeof(float)),
             Usage = BufferUsage.Vertex,
             MemoryUsage = MemoryUsage.Upload
         });
@@ -84,28 +117,30 @@ public static class Hotbar
         struct VSInput
         {
             float2 Position : POSITION;
+            float4 Color : COLOR;
         };
 
         struct VSOutput
         {
             float4 Position : SV_Position;
+            float4 Color : COLOR;
         };
 
         VSOutput VSMain(VSInput input)
         {
             VSOutput output;
             output.Position = float4(input.Position, 0.0, 1.0);
+            output.Color = input.Color;
             return output;
         }
 
         float4 PSMain(VSOutput input) : SV_Target
         {
-            return float4(0.05, 0.05, 0.05, 0.9);
+            return input.Color;
         }
         """;
 
         var vertexShaderCode = Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
-
         var fragmentShaderCode = Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
 
         _vertexShader = device.CreateShader(new()
@@ -126,15 +161,22 @@ public static class Hotbar
         {
             VertexShader = _vertexShader,
             Elements = new VertexElement[]
-        {
-            new()
             {
-                Semantic = "POSITION",
-                Location = 0,
-                Format = TextureFormat.R32G32Float,
-                Offset = 0
+                new()
+                {
+                    Semantic = "POSITION",
+                    Location = 0,
+                    Format = TextureFormat.R32G32Float,
+                    Offset = 0
+                },
+                new()
+                {
+                    Semantic = "COLOR",
+                    Location = 0,
+                    Format = TextureFormat.R32G32B32A32Float,
+                    Offset = sizeof(float) * 2
+                }
             }
-        }
         });
 
         _rasterizerState = device.CreateRasterizerState(new()
@@ -153,7 +195,7 @@ public static class Hotbar
 
         _blendState = device.CreateBlendState(new()
         {
-            Enable = true
+            Enable = false
         });
 
         _pipeline = device.CreatePipeline(new()
@@ -171,9 +213,9 @@ public static class Hotbar
     public static void Render(ICommandBuffer commandBuffer)
     {
         commandBuffer.SetPipeline(_pipeline);
-        commandBuffer.SetVertexBuffer(_vertexBuffer, sizeof(float) * 2);
+        commandBuffer.SetVertexBuffer(_vertexBuffer, sizeof(float) * FloatsPerVertex);
 
-        commandBuffer.Draw((uint)(vertices.Count / 2));
+        commandBuffer.Draw((uint)(vertices.Length / FloatsPerVertex));
     }
 
     public static void Dispose()
