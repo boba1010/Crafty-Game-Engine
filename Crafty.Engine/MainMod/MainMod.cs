@@ -1,4 +1,5 @@
 ﻿using Crafty.SDK;
+using Crafty.SDK.Client;
 
 namespace Crafty.Engine.MainMod;
 
@@ -14,22 +15,35 @@ public sealed class MainMod : IMod
 
     public void Initilaize(IModContext context)
     {
-        var blocksCreator = new BlocksCreator();
-
-        var air = blocksCreator.CreateAirBlock();
+        var air = BlocksCreator.CreateAirBlock();
         context.Blocks.Register(air);
         context.Logger.Log("crafty.air created successfully");
 
-        var grassBlock = blocksCreator.CreateThreeSidedTextureBlock("crafty.grass");
+        var grassBlock = BlocksCreator.CreateThreeSidedTextureBlock("crafty.grass");
         context.Blocks.Register(grassBlock);
+        context.Items.Register(new Item()
+        { 
+            Name = "Grass block",
+            BlockId = "crafty.grass"
+        });
         context.Logger.Log("crafty.grass created successfully");
 
-        var dirtBlock = blocksCreator.CreateOneSidedTextureBlock("crafty.dirt");
+        var dirtBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.dirt");
         context.Blocks.Register(dirtBlock);
+        context.Items.Register(new Item()
+        {
+            Name = "Dirt",
+            BlockId = "crafty.dirt"
+        });
         context.Logger.Log("crafty.dirt created successfully");
         
-        var stoneBlock = blocksCreator.CreateOneSidedTextureBlock("crafty.stone");
+        var stoneBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.stone");
         context.Blocks.Register(stoneBlock);
+        context.Items.Register(new Item()
+        { 
+            Name = "Stone",
+            BlockId = "crafty.stone"
+        });
         context.Logger.Log("crafty.stone created successfully");
     }
 }

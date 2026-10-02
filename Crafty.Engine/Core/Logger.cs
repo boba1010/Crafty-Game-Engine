@@ -1,6 +1,6 @@
 ﻿using Crafty.SDK.Debugging;
 
-namespace Crafty.Engine;
+namespace Crafty.Engine.Core;
 
 public sealed class Logger : ILogger
 {

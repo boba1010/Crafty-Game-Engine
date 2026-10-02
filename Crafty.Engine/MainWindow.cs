@@ -2,6 +2,7 @@
 using Crafty.ChunkGeneration.IO;
 using Crafty.ChunkGeneration.World;
 using Crafty.Engine.Components;
+using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
 using Crafty.Engine.Systems;
 using CraftyNative;
@@ -88,16 +89,23 @@ public sealed class MainWindow : Window
         var playerParent = _world.Scene.CreateObject();
         _world.Scene.SetParent(camera, playerParent);
         _world.Scene.AddComponent(playerParent, new Player());
+        _world.Scene.AddComponent(playerParent, new Inventory());
+        _world.Scene.AddComponent(playerParent, new Hotbar());
         _world.Scene.AddComponent(playerParent, new Transform() { Position = new(0, 75, 0) });
         _world.Scene.AddComponent(playerParent, new Movement());
         _world.Scene.AddComponent(playerParent, new Collider(new(0.6f, 1.8f, 0.6f)));
 
         var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
-
         world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
+
+        ref var hotbar = ref _world.Scene.GetComponent<Hotbar>(playerParent);
+        hotbar.Slots[0] = new(1, 1, 1);
+        hotbar.Slots[1] = new(2, 1, 2);
+        hotbar.Slots[2] = new(2, 1, 3);
 
         _world.Scene.Systems.Add(CameraSystem);
         _world.Scene.Systems.Add(new PlayerMovementSystem());
+        _world.Scene.Systems.Add(new HotbarSystem());
         _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
         _world.Scene.Systems.Add(new CollisionSystem());
         _world.Scene.Systems.Add(new PlayerBlockInteractionSystem(world));

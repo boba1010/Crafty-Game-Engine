@@ -1,4 +1,5 @@
 ﻿using Crafty.ChunkGeneration.World;
+using Crafty.Engine.Components;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
@@ -17,28 +18,31 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        foreach (var entity in scene.GetEntitiesWith<Camera>())
-        {
-            ref var camera = ref scene.GetComponent<Camera>(entity);
-            ref var cameraTransform = ref scene.GetComponent<Transform>(entity);
+        var cameraObject = scene.GetEntitiesWith<Camera>().FirstOrDefault();
+        var playerObject = scene.GetEntitiesWith<Player>().FirstOrDefault();
 
-            var cameraPosition = cameraTransform.Position;
-            float pitch = cameraTransform.Rotation.X;
-            float yaw = cameraTransform.Rotation.Y;
+        ref var camera = ref scene.GetComponent<Camera>(cameraObject);
+        ref var cameraTransform = ref scene.GetComponent<Transform>(cameraObject);
 
-            Vector3 direction = new(-MathF.Cos(pitch) * MathF.Sin(yaw), MathF.Sin(pitch), -MathF.Cos(pitch) * MathF.Cos(yaw));
+        var cameraPosition = cameraTransform.Position;
+        float pitch = cameraTransform.Rotation.X;
+        float yaw = cameraTransform.Rotation.Y;
 
+        Vector3 direction = new(-MathF.Cos(pitch) * MathF.Sin(yaw), MathF.Sin(pitch), -MathF.Cos(pitch) * MathF.Cos(yaw));
+
+        if (SystemAPI.Input.IsMouseButtonDown(MouseButton.Left))
             HandleBlockBreak((float)deltaTime, cameraPosition, direction);
-            HandleBlockPlace((float)deltaTime, cameraPosition, direction);
+
+        if (SystemAPI.Input.IsMouseButtonDown(MouseButton.Right))
+        {
+            ref var hotbar = ref scene.GetComponent<Hotbar>(playerObject);
+            HandleBlockPlace((float)deltaTime, cameraPosition, direction, hotbar.Slots[hotbar.SelectedSlot]);
         }
     }
 
     private void HandleBlockBreak(float deltaTime, Vector3 cameraPosition, Vector3 direction)
     {
         _breakCooldown -= deltaTime;
-
-        if (!SystemAPI.Input.IsMouseButtonDown(MouseButton.Left))
-            return;
 
         if (_breakCooldown > 0)
             return;
@@ -50,12 +54,9 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
         _breakCooldown = BreakCooldown;
     }
 
-    private void HandleBlockPlace(float deltaTime, Vector3 cameraPosition, Vector3 direction)
+    private void HandleBlockPlace(float deltaTime, Vector3 cameraPosition, Vector3 direction, InventorySlot slot)
     {
         _placeCooldown -= deltaTime;
-
-        if (!SystemAPI.Input.IsMouseButtonDown(MouseButton.Right))
-            return;
 
         if (_placeCooldown > 0)
             return;
@@ -67,7 +68,8 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
         var y = hit.Y + (int)hit.Normal.Y;
         var z = hit.Z + (int)hit.Normal.Z;
 
-        world.SetBlock(x, y, z, 1);
+        if (slot.BlockId.HasValue)
+            world.SetBlock(x, y, z, slot.BlockId.Value);
         _placeCooldown = PlaceCooldown;
     }
 

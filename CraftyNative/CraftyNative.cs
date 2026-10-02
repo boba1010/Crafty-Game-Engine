@@ -332,7 +332,7 @@ internal unsafe static class CraftyNative
                 continue;
 
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
-            DrawMesh(mesh, model * view * projection, $"{section.Coordinate.SectionX}_{section.Coordinate.SectionY}_{section.Coordinate.SectionZ}");
+            DrawMesh(mesh, model * view * projection, $"{section.Coordinate.ChunkX}_{section.Coordinate.ChunkZ}_{section.Coordinate.SectionX}_{section.Coordinate.SectionY}_{section.Coordinate.SectionZ}");
         }
 
         foreach (var (objectId, renderable) in scene.Renderables)

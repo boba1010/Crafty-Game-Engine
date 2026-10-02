@@ -1,7 +1,7 @@
 ﻿using Crafty.SDK.Client;
 using Crafty.SDK.Client.Blocks;
 
-namespace Crafty.Engine;
+namespace Crafty.Engine.Core;
 
 public sealed class BlockRegistry : IBlockRegistry
 {

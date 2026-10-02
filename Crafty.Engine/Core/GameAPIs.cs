@@ -1,7 +1,7 @@
 ﻿using Crafty.SDK.Client;
 using CraftyNative.ThreeD;
 
-namespace Crafty.Engine;
+namespace Crafty.Engine.Core;
 
 public static class GameAPIs
 {

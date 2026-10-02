@@ -7,4 +7,5 @@ public interface IModContext
 {
     public ILogger Logger { get; }
     public IBlockRegistry Blocks { get; }
+    public IItemRegistry Items { get; }
 }

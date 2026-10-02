@@ -2,9 +2,9 @@
 
 namespace Crafty.Engine.MainMod;
 
-public sealed class BlocksCreator
+public static class BlocksCreator
 {
-    public BlockModel CreateOneSidedBlockModel(string textureId)
+    public static BlockModel CreateOneSidedBlockModel(string textureId)
     {
         return new BlockModel()
         {
@@ -44,7 +44,7 @@ public sealed class BlocksCreator
         };
     }
 
-    private BlockModel CreateThreeSidedBlockModel(string textureId)
+    private static BlockModel CreateThreeSidedBlockModel(string textureId)
     {
         return new BlockModel()
         {
@@ -84,12 +84,12 @@ public sealed class BlocksCreator
         };
     }
 
-    private CollisionShape CreateBlockCollider()
+    private static CollisionShape CreateBlockCollider()
     {
         return CollisionShape.FullCube;
     }
 
-    public Block CreateOneSidedTextureBlock(string textureId)
+    public static Block CreateOneSidedTextureBlock(string textureId)
     {
         var block = new Block()
         {
@@ -100,7 +100,7 @@ public sealed class BlocksCreator
         return block;
     }
 
-    public Block CreateAirBlock()
+    public static Block CreateAirBlock()
     {
         var block = new Block()
         {
@@ -111,7 +111,7 @@ public sealed class BlocksCreator
         return block;
     }
 
-    public Block CreateThreeSidedTextureBlock(string textureId)
+    public static Block CreateThreeSidedTextureBlock(string textureId)
     {
         var block = new Block()
         {
