@@ -1,12 +1,34 @@
+# Crafty
+
+> **Crafty is now LIVE! 🚀**
+
+Crafty is a data-oriented voxel game built from the ground up with a custom runtime, rendering stack, and game engine.
+
+**Current release:** `EA_26.10.3`
+
+## Releases
+
+| Release                 | Status     |
+| ----------------------- | ---------- |
+| `EA_26.10.3`            | Released   |
+| `EA_26.10.2-Addition-2` | Released   |
+| `EA_26.10.2`            | Released   |
+| `EA_26.10`              | Released   |
+
+Crafty's development is currently in **Early Access**. New systems and gameplay features are continuously being added as the engine and game evolve.
+
+---
+
 # CraftyNative
 
-**The runtime engine powering Crafty.**
+> **The runtime engine powering Crafty.**
 
 CraftyNative is the specialized runtime engine used by **Crafty**, a data-oriented voxel game.
 
 It sits on top of **Vulcan**, providing the runtime systems required by Crafty while leaving the actual game logic, gameplay mechanics, and content to `Crafty.Engine`.
 
 CraftyNative is not intended to be a general-purpose game engine or framework. It exists to provide the runtime that Crafty needs.
+
 
 ## Architecture
 

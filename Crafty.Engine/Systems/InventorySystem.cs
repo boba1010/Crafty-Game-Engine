@@ -142,16 +142,6 @@ public sealed class InventorySystem : ISystem
         _shownTab = tab;
     }
 
-    private void ChangePage(int delta)
-    {
-        int tab = HudInventory.ActiveTab;
-        if (tab == 0) return;
-
-        int pages = Math.Max(1, (CategoryBlocks(tab).Length + PerPage - 1) / PerPage);
-        _tabPages[tab] = ((_tabPages[tab] + delta) % pages + pages) % pages;
-        RefreshPalette();
-    }
-
     private void HandlePaletteClick(int index)
     {
         if (_heldSlot is not null)
