@@ -17,6 +17,16 @@ public sealed class InventorySystem : ISystem
     private bool _returnHeldOnClose;
     private static readonly Dictionary<ushort, CraftyNative.ThreeD.Meshes.Mesh> _meshCache = [];
     private readonly InventorySlot[] _synced = new InventorySlot[HudInventory.SlotCount];
+    private const int MaxStack = 64;
+    private int _shownTab = -1;
+    private readonly int[] _tabPages = new int[HudInventory.MaxTabs];
+    private bool _heldIsCreative;
+
+    private static int PerPage => HudInventory.PaletteSlots;
+    private static bool InPalette(int slot) => HudInventory.ActiveTab != 0 && slot >= HudInventory.Columns;
+
+    private static ushort[] CategoryBlocks(int tab) => [1, 2, 3];      // e.g. BlockRegistry.ByCategory(tab - 1)
+    private static ushort ItemIdFor(ushort blockId) => blockId;  // your real block -> item lookup
 
     public InventorySystem()
     {
@@ -70,6 +80,7 @@ public sealed class InventorySystem : ISystem
 
         ref var inventory = ref scene.GetComponent<Inventory>(player);
         ref var hotbar = ref scene.GetComponent<Hotbar>(player);
+        ref var playerComponent = ref scene.GetComponent<Player>(player);
 
         if (_returnHeldOnClose)
         {
@@ -86,6 +97,11 @@ public sealed class InventorySystem : ISystem
         if (!GameStateManager.IsInventory || GameStateManager.IsPaused)
             return;
 
+        HudInventory.TabCount = playerComponent.GameMode is GameMode.Creative ? 2 : 0;
+
+        if (_shownTab != HudInventory.ActiveTab)
+            RefreshPalette();
+
         if (_needsFullSync)
         {
             SyncHeld();
@@ -93,13 +109,79 @@ public sealed class InventorySystem : ISystem
         }
 
         if (justPressed)
-            HandleSlotClick(ref inventory, ref hotbar, HudInventory.HitTest(_cursor));
+        {
+            int tab = HudInventory.HitTestTab(_cursor);
+
+            if (tab != -1)
+                HudInventory.SetActiveTab(tab);
+            else
+                HandleSlotClick(ref inventory, ref hotbar, HudInventory.HitTest(_cursor));
+        }
+    }
+
+    private void RefreshPalette()
+    {
+        int tab = HudInventory.ActiveTab;
+        var blocks = tab == 0 ? [] : CategoryBlocks(tab);
+
+        for (int i = 0; i < PerPage; i++)
+        {
+            int idx = _tabPages[tab] * PerPage + i;
+
+            if (idx < blocks.Length)
+            {
+                var s = new InventorySlot(ItemIdFor(blocks[idx]), 1, blocks[idx]);
+                HudInventory.SetPaletteSlot(i, ResolveMesh(s), ResolveKey(s));
+            }
+            else
+            {
+                HudInventory.SetPaletteSlot(i, null);
+            }
+        }
+
+        _shownTab = tab;
+    }
+
+    private void ChangePage(int delta)
+    {
+        int tab = HudInventory.ActiveTab;
+        if (tab == 0) return;
+
+        int pages = Math.Max(1, (CategoryBlocks(tab).Length + PerPage - 1) / PerPage);
+        _tabPages[tab] = ((_tabPages[tab] + delta) % pages + pages) % pages;
+        RefreshPalette();
+    }
+
+    private void HandlePaletteClick(int index)
+    {
+        if (_heldSlot is not null)
+        {
+            _heldSlot = null;
+            _heldIsCreative = false;
+            SyncHeld();
+            return;
+        }
+
+        var blocks = CategoryBlocks(HudInventory.ActiveTab);
+        int idx = _tabPages[HudInventory.ActiveTab] * PerPage + index;
+        if (idx >= blocks.Length)
+            return;
+
+        _heldSlot = new InventorySlot(ItemIdFor(blocks[idx]), MaxStack, blocks[idx]);
+        _heldIsCreative = true;
+        SyncHeld();
     }
 
     private void HandleSlotClick(ref Inventory inventory, ref Hotbar hotbar, int slot)
     {
         if (slot == -1)
             return;
+
+        if (InPalette(slot))
+        {
+            HandlePaletteClick(slot - HudInventory.Columns);
+            return;
+        }
 
         ref var clickedSlot = ref inventory.Slots[slot];
 
@@ -121,12 +203,22 @@ public sealed class InventorySystem : ISystem
             (clickedSlot, _heldSlot) = (_heldSlot.Value, clickedSlot);
         }
 
+        _heldIsCreative = false;
+
         SyncSlot(ref inventory, ref hotbar, slot);
         SyncHeld();
     }
 
     private void ReturnHeldItem(ref Inventory inventory, ref Hotbar hotbar)
     {
+        if (_heldIsCreative)
+        {
+            _heldSlot = null;
+            _heldIsCreative = false;
+            HudInventory.ClearHeldItem();
+            return;
+        }
+
         if (_heldSlot is not { } held)
             return;
 

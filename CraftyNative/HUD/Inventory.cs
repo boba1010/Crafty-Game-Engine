@@ -64,8 +64,44 @@ public static class Inventory
 
     public static bool IsOpen { get; private set; }
 
-    /// <summary>Slot under the cursor (from the last <see cref="SetCursor"/>), or -1.</summary>
     public static int HoveredSlot => _hoveredSlot;
+
+    public const int MaxTabs = 6;
+
+    private const float TabWidth = 44f;
+    private const float TabHeight = 28f;
+    private const float TabGap = 3f;
+    private const float TabIconSize = 20f;
+
+    private static readonly Mesh?[] _tabMeshes = new Mesh?[MaxTabs];
+    private static readonly string[] _tabKeys = new string[MaxTabs];
+    private static int _tabCount;
+    private static int _activeTab;
+    private static int _hoveredTab = -1;
+
+    // The bar only shows with 2+ tabs, so a survival-only setup stays clean
+    private static int VisibleTabs => _tabCount >= 2 ? _tabCount : 0;
+
+    public static int ActiveTab => _activeTab;
+
+    public static int TabCount
+    {
+        get => _tabCount;
+        set
+        {
+            value = Math.Clamp(value, 0, MaxTabs);
+            if (value == _tabCount) return;
+
+            _tabCount = value;
+            if (_activeTab >= value) _activeTab = 0;
+            _dirty = true;
+        }
+    }
+
+    public const int PaletteSlots = Columns * StorageRows; // 27 per page
+
+    private static readonly Mesh?[] _paletteMeshes = new Mesh?[PaletteSlots];
+    private static readonly string[] _paletteKeys = new string[PaletteSlots];
 
     public static void Initialize(IGraphicsDevice device, Vector2 size)
     {
@@ -178,21 +214,26 @@ public static class Inventory
         });
     }
 
+    public static void SetPaletteSlot(int index, Mesh? mesh, string? materialKey = null)
+    {
+        if ((uint)index >= PaletteSlots) return;
+        _paletteMeshes[index] = mesh;
+        _paletteKeys[index] = materialKey ?? $"palette_{index}_{++_keyVersion}";
+    }
+
     public static void Open()
     {
         IsOpen = true;
-
-        //for (int i = 0; i < Columns; i++)
-        //    SetSlot(i, Hotbar.GetSlotMesh(i), Hotbar.GetSlotKey(i));
     }
 
     public static void Close()
     {
         IsOpen = false;
 
-        if (_hoveredSlot != -1)
+        if (_hoveredSlot != -1 || _hoveredTab != -1)
         {
             _hoveredSlot = -1;
+            _hoveredTab = -1;
             _dirty = true;
         }
     }
@@ -236,10 +277,13 @@ public static class Inventory
         _cursorPosition = cursorPx;
 
         int hovered = HitTest(cursorPx);
-        if (hovered == _hoveredSlot)
+        int hoveredTab = HitTestTab(cursorPx);
+
+        if (hovered == _hoveredSlot && hoveredTab == _hoveredTab)
             return;
 
         _hoveredSlot = hovered;
+        _hoveredTab = hoveredTab;
         _dirty = true;
     }
 
@@ -285,6 +329,52 @@ public static class Inventory
         return new Vector2(origin.X + SlotSize * 0.5f, origin.Y + SlotSize * 0.5f);
     }
 
+    public static void SetActiveTab(int tab)
+    {
+        if ((uint)tab >= (uint)VisibleTabs || tab == _activeTab) return;
+        _activeTab = tab;
+        _dirty = true;
+    }
+
+    public static void SetTabIcon(int tab, Mesh? mesh, string? materialKey = null)
+    {
+        if ((uint)tab >= MaxTabs) return;
+        _tabMeshes[tab] = mesh;
+        _tabKeys[tab] = materialKey ?? $"tab_{tab}_{++_keyVersion}";
+    }
+
+    // The active tab is raised, idle tabs are a bit shorter
+    private static float TabH(int t) => t == _activeTab ? TabHeight : TabHeight - 4f;
+
+    private static Vector2 GetTabOrigin(int t)
+    {
+        var panel = GetPanelOrigin();
+        return new Vector2(
+            MathF.Round(panel.X + t * (TabWidth + TabGap)),
+            MathF.Round(panel.Y - TabH(t)));
+    }
+
+    private static Vector2 GetTabCenter(int t)
+    {
+        var o = GetTabOrigin(t);
+        return new Vector2(o.X + TabWidth * 0.5f, o.Y + TabH(t) * 0.5f);
+    }
+
+    public static int HitTestTab(Vector2 px)
+    {
+        if (!IsOpen) return -1;
+
+        for (int t = 0; t < VisibleTabs; t++)
+        {
+            var o = GetTabOrigin(t);
+            if (px.X >= o.X && px.X < o.X + TabWidth &&
+                px.Y >= o.Y && px.Y < o.Y + TabH(t))
+                return t;
+        }
+
+        return -1;
+    }
+
     private static void BuildVertices()
     {
         var list = new List<float>();
@@ -328,6 +418,29 @@ public static class Inventory
             Rect(o.X + border, o.Y + border, SlotSize - border * 2f, SlotSize - border * 2f, fill);
         }
 
+        for (int t = 0; t < MaxTabs; t++)
+        {
+            if (t >= VisibleTabs)
+            {
+                Rect(0, 0, 0, 0, PanelBorder);
+                Rect(0, 0, 0, 0, PanelFill);
+                Rect(0, 0, 0, 0, Accent);
+                continue;
+            }
+
+            var o = GetTabOrigin(t);
+            float h = TabH(t);
+            bool selected = t == _activeTab;
+            bool hovered = t == _hoveredTab && !selected;
+
+            var border = selected ? PanelBorder : hovered ? Accent : SlotBorder;
+            var fill = selected ? PanelFill : hovered ? SlotHoverFill : SlotFill;
+
+            Rect(o.X, o.Y, TabWidth, h, border);
+            Rect(o.X + 1f, o.Y + 1f, TabWidth - 2f, h - 1f, fill);   // open at the bottom so it joins the panel
+            Rect(o.X + 1f, o.Y + 1f, TabWidth - 2f, selected ? AccentBarHeight : 0f, Accent);
+        }
+
         vertices = [.. list];
     }
 
@@ -368,7 +481,10 @@ public static class Inventory
 
         for (int i = 0; i < SlotCount; i++)
         {
-            var mesh = _slotMeshes[i];
+            bool palette = _activeTab != 0 && i >= Columns;
+            var mesh = palette ? _paletteMeshes[i - Columns] : _slotMeshes[i];
+            var key = palette ? _paletteKeys[i - Columns] : _slotKeys[i];
+
             if (mesh == null || mesh.Vertices.Count == 0 || mesh.Indices.Count == 0)
                 continue;
 
@@ -378,7 +494,25 @@ public static class Inventory
                 any = true;
             }
 
-            Hotbar.DrawMeshInRect(commandBuffer, mesh, _slotKeys[i], GetSlotCenter(i), MeshSize);
+            Hotbar.DrawMeshInRect(commandBuffer, mesh, key, GetSlotCenter(i), MeshSize);
+        }
+
+        for (int i = 0; i < SlotCount; i++)
+        {
+            bool palette = _activeTab != 0 && i >= Columns;
+            var mesh = palette ? _paletteMeshes[i - Columns] : _slotMeshes[i];
+            var key = palette ? _paletteKeys[i - Columns] : _slotKeys[i];
+
+            if (mesh == null || mesh.Vertices.Count == 0 || mesh.Indices.Count == 0)
+                continue;
+
+            if (!any)
+            {
+                commandBuffer.ClearDepth(1f);
+                any = true;
+            }
+
+            Hotbar.DrawMeshInRect(commandBuffer, mesh, key, GetSlotCenter(i), MeshSize);
         }
 
         if (hasHeld)
