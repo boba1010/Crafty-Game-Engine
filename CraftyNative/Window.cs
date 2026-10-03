@@ -45,10 +45,6 @@ public abstract class Window : IDisposable
         Focused?.Invoke(this, focused);
     }
 
-    protected virtual void OnResize(Vector2D<int> size)
-    {
-    }
-
     public void Resize(Vector2D<int> size)
     {
         Size = size;
@@ -56,16 +52,13 @@ public abstract class Window : IDisposable
         OnResize(size);
     }
 
-    protected virtual void OnMouseMove(Vector2 position)
-    {
-    }
 
-    protected virtual void OnKeyDown(Key key)
-    {
-    }
-    protected virtual void OnKeyUp(Key key)
-    {
-    }
+    protected virtual void OnResize(Vector2D<int> size) { }
+    protected virtual void OnMouseMove(Vector2 position) { }
+    protected virtual void OnKeyDown(Key key) { }
+    protected virtual void OnKeyUp(Key key) { }
+    protected virtual void OnMouseClick(MouseButton button, Vector2 position) { }
+    protected virtual void Render(double deltaTime) { }
 
     private void OnWindowLoad()
     {
@@ -77,8 +70,14 @@ public abstract class Window : IDisposable
         InputManager.KeyDown += InputManager_KeyDown;
         InputManager.KeyUp += InputManager_KeyUp;
         InputManager.MouseMove += InputManager_MouseMove;
+        InputManager.Click += InputManager_Click;
 
         Activated?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void InputManager_Click(Vector2 position, MouseButton btn)
+    {
+        OnMouseClick(btn, position);
     }
 
     private void InputManager_MouseMove(Vector2 position)
@@ -101,19 +100,10 @@ public abstract class Window : IDisposable
         Render(deltaTime);
     }
 
-    /// <summary>
-    /// Override for 3D or custom rendering
-    /// </summary>
-    /// <param name="deltaTime"></param>
-    protected virtual void Render(double deltaTime)
-    {
-    }
-
     private void OnWindowResize(Silk.NET.Maths.Vector2D<int> size)
     {
         Size = size;
         OnResize(size);
-        ResizeDpiScale(size.X, size.Y);
     }
 
     public void Activate()
@@ -121,13 +111,10 @@ public abstract class Window : IDisposable
         NativeWindow.Run();
     }
 
-    private void ResizeDpiScale(int width, int height)
-    {
-    }
-
     public virtual void Dispose()
     {
         InputManager?.Dispose();
         CraftyNative.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

@@ -55,7 +55,12 @@ public static class Inventory
 
     private static readonly Mesh?[] _slotMeshes = new Mesh?[SlotCount];
     private static readonly string[] _slotKeys = new string[SlotCount];
+    private static Mesh? _heldMesh;
+    private static string _heldKey = string.Empty;
+    public static bool HasHeldItem => _heldMesh != null;
     private static int _keyVersion;
+
+    private static Vector2 _cursorPosition;
 
     public static bool IsOpen { get; private set; }
 
@@ -177,8 +182,8 @@ public static class Inventory
     {
         IsOpen = true;
 
-        for (int i = 0; i < Columns; i++)
-            SetSlot(i, Hotbar.GetSlotMesh(i), Hotbar.GetSlotKey(i));
+        //for (int i = 0; i < Columns; i++)
+        //    SetSlot(i, Hotbar.GetSlotMesh(i), Hotbar.GetSlotKey(i));
     }
 
     public static void Close()
@@ -209,26 +214,28 @@ public static class Inventory
         _dirty = true;
     }
 
-    /// <summary>Call with the mouse position in pixels (origin top-left) while the inventory is open.</summary>
-    public static void SetCursor(Vector2 cursorPx)
+    public static int HitTest(Vector2 px)
     {
-        int hovered = -1;
+        if (!IsOpen)
+            return -1;
 
-        if (IsOpen)
+        for (int i = 0; i < SlotCount; i++)
         {
-            for (int i = 0; i < SlotCount; i++)
-            {
-                var o = GetSlotOrigin(i);
+            var o = GetSlotOrigin(i);
 
-                if (cursorPx.X >= o.X && cursorPx.X < o.X + SlotSize &&
-                    cursorPx.Y >= o.Y && cursorPx.Y < o.Y + SlotSize)
-                {
-                    hovered = i;
-                    break;
-                }
-            }
+            if (px.X >= o.X && px.X < o.X + SlotSize &&
+                px.Y >= o.Y && px.Y < o.Y + SlotSize)
+                return i;
         }
 
+        return -1;
+    }
+
+    public static void SetCursor(Vector2 cursorPx)
+    {
+        _cursorPosition = cursorPx;
+
+        int hovered = HitTest(cursorPx);
         if (hovered == _hoveredSlot)
             return;
 
@@ -331,6 +338,18 @@ public static class Inventory
         _dirty = false;
     }
 
+    public static void SetHeldItem(Mesh? mesh, string? materialKey = null)
+    {
+        _heldMesh = mesh;
+        _heldKey = materialKey ?? $"inventory_held_{++_keyVersion}";
+    }
+
+    public static void ClearHeldItem()
+    {
+        _heldMesh = null;
+        _heldKey = string.Empty;
+    }
+
     public static void Render(ICommandBuffer commandBuffer)
     {
         if (!IsOpen)
@@ -344,6 +363,7 @@ public static class Inventory
         commandBuffer.SetVertexBuffer(_vertexBuffer, sizeof(float) * FloatsPerVertex);
         commandBuffer.Draw((uint)(vertices.Length / FloatsPerVertex));
 
+        bool hasHeld = _heldMesh is { } h && h.Vertices.Count > 0 && h.Indices.Count > 0;
         bool any = false;
 
         for (int i = 0; i < SlotCount; i++)
@@ -354,19 +374,24 @@ public static class Inventory
 
             if (!any)
             {
-                // Wipe depth so the panel's meshes aren't clipped by the hotbar's meshes or the world
                 commandBuffer.ClearDepth(1f);
                 any = true;
             }
 
-            var center = GetSlotCenter(i);
-
-            Console.WriteLine($"Slot {i}: {center} | Window: {_size}");
-
-            Hotbar.DrawMeshInRect(commandBuffer, mesh, _slotKeys[i], center, MeshSize);
+            Hotbar.DrawMeshInRect(commandBuffer, mesh, _slotKeys[i], GetSlotCenter(i), MeshSize);
         }
 
-        if (any)
+        if (hasHeld)
+        {
+            if (!any)
+                commandBuffer.ClearDepth(1f);
+
+            // Held item draws last, on top of the slot meshes
+            commandBuffer.ClearDepth(1f);
+            Hotbar.DrawMeshInRect(commandBuffer, _heldMesh!, _heldKey, _cursorPosition, MeshSize);
+        }
+
+        if (any || hasHeld)
         {
             commandBuffer.SetViewport(new Viewport
             {

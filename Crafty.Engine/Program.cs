@@ -1,4 +1,7 @@
-﻿namespace Crafty.Engine;
+﻿using Silk.NET.Input.Glfw;
+using Silk.NET.Windowing.Glfw;
+
+namespace Crafty.Engine;
 
 internal class Program
 {
@@ -8,6 +11,9 @@ internal class Program
     {
         try
         {
+            GlfwWindowing.RegisterPlatform();
+            GlfwInput.RegisterPlatform();
+
             Window = new()
             {
                 Title = "Crafty"

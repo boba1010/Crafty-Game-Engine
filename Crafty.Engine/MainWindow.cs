@@ -41,6 +41,8 @@ public sealed class MainWindow : Window
     {
         if (!focused)
         {
+            if (GameStateManager.IsInventory)
+                return;
             GameStateManager.Set(GameState.Paused);
             InputManager.CursorMode = Cursor.Normal;
             return;
@@ -97,10 +99,10 @@ public sealed class MainWindow : Window
         var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
         world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
 
-        ref var hotbar = ref _world.Scene.GetComponent<Hotbar>(playerParent);
-        hotbar.Slots[0] = new(1, 1, 1);
-        hotbar.Slots[1] = new(2, 1, 2);
-        hotbar.Slots[2] = new(2, 1, 3);
+        ref var inventory = ref _world.Scene.GetComponent<Inventory>(playerParent);
+        inventory.Slots[0] = new(1, 1, 1);
+        inventory.Slots[1] = new(2, 1, 2);
+        inventory.Slots[2] = new(2, 1, 3);
 
         _world.Scene.Systems.Add(new PlayerMovementSystem());
         _world.Scene.Systems.Add(new HotbarSystem());

@@ -15,7 +15,7 @@ public struct InventorySlot(ushort itemId, int count, ushort? blockId)
     public int Count = count;
 }
 
-[InlineArray(27)]
+[InlineArray(36)]
 public struct InventorySlots
 {
     private InventorySlot _element;

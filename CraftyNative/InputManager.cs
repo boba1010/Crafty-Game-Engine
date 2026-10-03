@@ -15,6 +15,7 @@ public sealed class InputManager : IDisposable
     public event Action<Key>? KeyDown;
     public event Action<Key>? KeyUp;
     public event Action<Vector2>? MouseMove;
+    public event Action<Vector2, MouseButton>? Click;
     private readonly IInputContext _input;
     private readonly IKeyboard _keyboard;
     private readonly IMouse _mouse;
@@ -30,6 +31,12 @@ public sealed class InputManager : IDisposable
         _keyboard.KeyDown += Keyboard_KeyDown;
         _keyboard.KeyUp += Keyboard_KeyUp;
         _mouse.MouseMove += Mouse_MouseMove;
+        _mouse.Click += Mouse_Click;
+    }
+
+    private void Mouse_Click(IMouse mouse, Silk.NET.Input.MouseButton btn, Vector2 position)
+    {
+        Click?.Invoke(position, (MouseButton)btn);
     }
 
     public void CenterMouse(Vector2 windowSize)

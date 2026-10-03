@@ -13,7 +13,7 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
     public float Reach { get; set; } = 6f;
     public float BreakCooldown { get; set; } = 0.15f;
     private float _breakCooldown;
-    public float PlaceCooldown { get; set; } = 0.15f;
+    public float PlaceCooldown { get; set; } = 0.10f;
     private float _placeCooldown;
 
     public void Update(ref Scene scene, double deltaTime)
