@@ -4,10 +4,9 @@ using Crafty.Engine.Helpers;
 using Crafty.SDK.Client.Blocks;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.World;
+using System.Numerics;
 
 namespace Crafty.Engine;
-
-
 
 public static class MeshBuilder
 {
@@ -201,6 +200,108 @@ public static class MeshBuilder
         return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
     }
 
+    public static Mesh BuildPlayerMesh()
+    {
+        List<float> vertices = [];
+        List<uint> indices = [];
+
+        AddBox(vertices, indices, new(-0.25f, 1.5f, -0.25f), new(0.25f, 2.0f, 0.25f)); // Head
+        AddBox(vertices, indices, new(-0.25f, 0.75f, -0.125f), new(0.25f, 1.5f, 0.125f)); // Torso
+        AddBox(vertices, indices, new(-0.5f, 0.75f, -0.125f), new(-0.25f, 1.5f, 0.125f)); // Left arm
+        AddBox(vertices, indices, new(0.25f, 0.75f, -0.125f), new(0.5f, 1.5f, 0.125f)); // Right arm
+        AddBox(vertices, indices, new(-0.25f, 0.0f, -0.125f), new(0.0f, 0.75f, 0.125f)); // Left leg
+        AddBox(vertices, indices, new(0.0f, 0.0f, -0.125f), new(0.25f, 0.75f, 0.125f)); // Right leg
+
+        var pixels = new byte[64 * 64];
+
+        return new(vertices, indices, new(pixels, 64, 64), 20);
+    }
+
+    public static Mesh BuildPlayerHandMesh()
+    {
+        var vertices = new List<float>();
+        var indices = new List<uint>();
+
+        // 0.25 x 0.25 cross-section, 0.75 long. Origin = shoulder end, arm extends forward (-Z).
+        AddBox(vertices, indices, new(-0.125f, -0.125f, -0.75f), new(0.125f, 0.125f, 0f));
+
+        var pixels = new byte[64 * 64];
+
+        return new(vertices, indices, new(pixels, 64, 64), 20);
+    }
+
+    private static void AddBox(List<float> vertices, List<uint> indices, Vector3 min, Vector3 max)
+    {
+        uint start = (uint)(vertices.Count / 5);
+
+        AddFace(
+            vertices,
+            min.X, min.Y, min.Z,
+            max.X, min.Y, min.Z,
+            max.X, max.Y, min.Z,
+            min.X, max.Y, min.Z);
+
+        AddFace(
+            vertices,
+            max.X, min.Y, max.Z,
+            min.X, min.Y, max.Z,
+            min.X, max.Y, max.Z,
+            max.X, max.Y, max.Z);
+
+        AddFace(
+            vertices,
+            min.X, min.Y, max.Z,
+            min.X, min.Y, min.Z,
+            min.X, max.Y, min.Z,
+            min.X, max.Y, max.Z);
+
+        AddFace(
+            vertices,
+            max.X, min.Y, min.Z,
+            max.X, min.Y, max.Z,
+            max.X, max.Y, max.Z,
+            max.X, max.Y, min.Z);
+
+        AddFace(
+            vertices,
+            min.X, max.Y, min.Z,
+            max.X, max.Y, min.Z,
+            max.X, max.Y, max.Z,
+            min.X, max.Y, max.Z);
+
+        AddFace(
+            vertices,
+            min.X, min.Y, max.Z,
+            max.X, min.Y, max.Z,
+            max.X, min.Y, min.Z,
+            min.X, min.Y, min.Z);
+
+        for (uint face = 0; face < 6; face++)
+        {
+            uint offset = start + face * 4;
+
+            indices.AddRange([
+                offset + 0, offset + 1, offset + 2,
+            offset + 2, offset + 3, offset + 0
+            ]);
+        }
+    }
+
+    private static void AddFace(
+        List<float> vertices,
+        float x0, float y0, float z0,
+        float x1, float y1, float z1,
+        float x2, float y2, float z2,
+        float x3, float y3, float z3)
+    {
+        vertices.AddRange([
+            x0, y0, z0, 0f, 1f,
+            x1, y1, z1, 1f, 1f,
+            x2, y2, z2, 1f, 0f,
+            x3, y3, z3, 0f, 0f
+        ]);
+    }
+
     private static void AddVertex(ref MeshData mesh, float x, float y, float z, float u, float v)
     {
         var vertices = mesh.Vertices;
@@ -240,4 +341,14 @@ public static class MeshBuilder
             _ => throw new ArgumentOutOfRangeException(nameof(face), face, null)
         };
     }
+}
+
+public enum PlayerPart
+{
+    Head,
+    Body,
+    LeftArm,
+    RightArm,
+    LeftLeg,
+    RightLeg
 }

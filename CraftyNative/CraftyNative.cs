@@ -326,7 +326,7 @@ internal unsafe static class CraftyNative
         for (int i = 0; i < visibleSectionsCount; i++)
         {
             var section = visibleSections[i];
-            var mesh = section.Mesh;
+            var mesh = section!.Mesh;
 
             if (mesh.Vertices.Count <= 0 || mesh.Indices.Count <= 0)
                 continue;
@@ -346,7 +346,8 @@ internal unsafe static class CraftyNative
                 Matrix4x4.CreateRotationZ(transform.Rotation.Z) *
                 Matrix4x4.CreateTranslation(transform.Position);
 
-            DrawMesh(renderable.Mesh, model * view * projection, objectId.ToString());
+            if (renderable.ShouldRender)
+                DrawMesh(renderable.Mesh, model * view * projection, objectId.ToString());
         }
 
         HudRenderer.Render(_commandBuffer, new(size.X, size.Y));
@@ -359,6 +360,11 @@ internal unsafe static class CraftyNative
     private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, string materialId)
     {
         var gpuMesh = GetOrCreateMesh(mesh);
+        if (mesh.IsDirty)
+        {
+            UpdateVertexBuffer(gpuMesh, mesh);
+            mesh.ClearDirty();
+        }
 
         var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
 
@@ -384,6 +390,13 @@ internal unsafe static class CraftyNative
 
         _commandBuffer.SetTexture(material.Atlas.Resource);
         _commandBuffer.DrawIndexed((uint)mesh.Indices.Count, 1, 0);
+    }
+
+    private static void UpdateVertexBuffer(GPUMesh gpuMesh, Mesh mesh)
+    {
+        var data = MemoryMarshal.AsBytes(mesh.Vertices.AsSpan());
+
+        gpuMesh.VertexBuffer.Upload(data);
     }
 
     internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp, string materialId)

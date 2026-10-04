@@ -31,6 +31,19 @@ public struct Scene
         return new WorldObject(parentId);
     }
 
+    public WorldObject[] GetChildren(WorldObject parent)
+    {
+        var children = new List<WorldObject>();
+
+        foreach (var (childId, parentId) in _parents)
+        {
+            if (parentId == parent.Id)
+                children.Add(new WorldObject(childId));
+        }
+
+        return children.ToArray();
+    }
+
     public WorldObject CreateObject()
     {
         return new WorldObject(_nextObjectId++);
@@ -44,6 +57,11 @@ public struct Scene
     public ref Renderable GetRenderable(WorldObject worldObject)
     {
         return ref CollectionsMarshal.GetValueRefOrNullRef(_renderables, worldObject.Id);
+    }
+
+    public void RemoveRenderable(WorldObject obj)
+    {
+        _renderables.Remove(obj.Id);
     }
 
     private ComponentStore<T> GetStore<T>() where T : struct, IComponent

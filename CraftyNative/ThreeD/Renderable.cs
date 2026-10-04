@@ -2,7 +2,8 @@
 
 namespace CraftyNative.ThreeD;
 
-public readonly struct Renderable(Mesh mesh)
+public struct Renderable(Mesh mesh, bool shouldRender)
 {
     public Mesh Mesh { get; } = mesh;
+    public bool ShouldRender { get; set; } = shouldRender;
 }

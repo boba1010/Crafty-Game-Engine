@@ -6,4 +6,15 @@ public sealed class Mesh(List<float> vertices, List<uint> indices, ImageData? te
     public List<uint> Indices { get; } = indices;
     public uint VertexStride { get; } = vertexStride;
     public ImageData? Texture { get; set; } = texture;
+    public bool IsDirty { get; private set; }
+
+    public void MarkDirty()
+    {
+        IsDirty = true;
+    }
+
+    public void ClearDirty()
+    {
+        IsDirty = false;
+    }
 }

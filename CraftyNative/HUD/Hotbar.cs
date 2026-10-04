@@ -38,6 +38,9 @@ public static class Hotbar
     private const float MeshSize = SlotSize * 0.8f;
 
     public static int SelectedSlot => _selectedSlot;
+    
+    private static readonly int[] _slotCounts = new int[SlotCount];
+    private static readonly HudDigits _digits = new();
 
     public static void Initialize(IGraphicsDevice device, Vector2 size)
     {
@@ -148,6 +151,8 @@ public static class Hotbar
             DepthStencil = _depthStencilState,
             Blend = _blendState
         });
+
+        _digits.Initialize(device);
     }
 
     private static void BuildVertices()
@@ -240,7 +245,7 @@ public static class Hotbar
 
     // Center + uniform scale so any mesh fits a unit cube.
     // Assumes position is the first 3 floats of each vertex.
-    private static (Vector3 Center, float Scale) GetBounds(Mesh mesh)
+    internal static (Vector3 Center, float Scale) GetBounds(Mesh mesh)
     {
         if (_bounds.TryGetValue(mesh, out var cached))
             return cached;
@@ -308,13 +313,14 @@ public static class Hotbar
 
     // materialKey: pass a stable key per block type so identical blocks share one cached texture.
     // If omitted, a unique key is generated per assignment (safe, but uploads a texture each time).
-    public static void SetSlot(int slot, Mesh? mesh, string? materialKey = null)
+    public static void SetSlot(int slot, Mesh? mesh, string? materialKey = null, int count = 1)
     {
         if ((uint)slot >= SlotCount)
             return;
 
         _slotMeshes[slot] = mesh;
         _slotKeys[slot] = materialKey ?? $"hotbar_{slot}_{++_keyVersion}";
+        _slotCounts[slot] = count;
     }
 
     // For the scroll wheel: +1 / -1, wraps around
@@ -371,6 +377,19 @@ public static class Hotbar
                 MaxDepth = 1
             });
         }
+
+        _digits.Begin(_size);
+
+        for (int i = 0; i < SlotCount; i++)
+        {
+            if (_slotMeshes[i] == null)
+                continue;
+
+            var c = GetSlotCenterPx(i);
+            _digits.AddCount(_slotCounts[i], c.X + SlotSize * 0.5f - 2f, c.Y + SlotSize * 0.5f - 2f);
+        }
+
+        _digits.Flush(commandBuffer, _pipeline);
     }
 
     public static void DrawMeshInRect(ICommandBuffer commandBuffer, Mesh mesh, string materialKey, Vector2 center, float size)
@@ -416,5 +435,6 @@ public static class Hotbar
         _pipeline?.Dispose();
 
         _bounds.Clear();
+        _digits.Dispose();
     }
 }

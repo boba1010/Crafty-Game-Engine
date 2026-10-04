@@ -10,7 +10,7 @@ namespace Crafty.Engine.Systems;
 
 public sealed class PlayerMovementSystem : ISystem
 {
-    public double Speed { get; set; } = 10;
+    public double Speed { get; set; } = 5;
     public double Gravity {get;set;} = 30;
     public double JumpForce { get; set; } = 10;
     private bool _isSprintPressed;
