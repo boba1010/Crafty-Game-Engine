@@ -7,24 +7,24 @@ public class WorldGenService : IWorldGenService
 {
     internal WorldGenerator WorldGenerator { get; set; }
 
-    public WorldGenService(string worldPath, ulong seed)
+    public WorldGenService(string worldDir)
     {
-        WorldGenerator = new(seed);
-        WorldIOManager.WorldPath = worldPath;
+        WorldGenerator = new();
+        WorldIOManager.WorldDir = worldDir;
     }
 
-    public World.World GenerateWorld()
+    public World.World GenerateWorld(string worldDir, string worldName, ulong seed, IProgress<WorldProgress> progress = null!)
     {
-        return WorldGenerator.GenerateWorld();
+        return WorldGenerator.GenerateWorld(worldDir, worldName, seed, progress);
     }
 
-    public Chunk LoadChunk(int x, int z)
+    public Chunk LoadChunk(int x, int z, ulong seed)
     {
-        string path = Path.Combine(WorldIOManager.WorldPath, "chunks", $"{x}_{z}.chunk");
+        string path = Path.Combine(WorldIOManager.WorldDir, "chunks", $"{x}_{z}.chunk");
 
         if (!File.Exists(path))
         {
-            var chunk = WorldGenerator.GenerateChunk(x, z);
+            var chunk = WorldGenerator.GenerateChunk(x, z, seed);
             WorldIOManager.SaveChunk((Chunk)chunk);
         }
 

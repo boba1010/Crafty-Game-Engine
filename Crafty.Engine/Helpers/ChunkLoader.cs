@@ -6,12 +6,13 @@ namespace Crafty.Engine.Helpers;
 public static class ChunkLoader
 {
     public static IWorldGenService WorldGenService { get; set; } = null!;
-    public static string WorldDirectory { get; set; } = "";
-    public static Chunk[] Load(int amount = 10)
+
+    public static Chunk[] Load(ulong seed, int amount = 10)
     {
         List<Chunk> chunks = [];
 
-        var files = Directory.GetFiles(WorldDirectory + @"\chunks");
+        var worldPath = Program.LaunchConfig.SelectedWorldPath;
+        var files = Directory.GetFiles(Path.GetDirectoryName(worldPath) + @"\chunks");
 
         int i = 0;
         foreach (var filePath in files)
@@ -31,15 +32,15 @@ public static class ChunkLoader
             int x = Convert.ToInt32(coords[0]);
             int z = Convert.ToInt32(coords[1]);
 
-            chunks.Add(WorldGenService.LoadChunk(x, z));
+            chunks.Add(WorldGenService.LoadChunk(x, z, seed));
             i++;
         }
 
         return [.. chunks];
     }
 
-    public static Chunk Load(int x, int z)
+    public static Chunk Load(int x, int z, ulong seed)
     {
-        return WorldGenService.LoadChunk(x, z);
+        return WorldGenService.LoadChunk(x, z, seed);
     }
 }

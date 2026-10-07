@@ -22,7 +22,7 @@ public readonly struct LoadChunkJob(World world, int x, int z) : IJob
 
         if (!ChunkCache.TryGet(_x, _z, out chunk!))
         {
-            chunk = ChunkLoader.Load(_x, _z);
+            chunk = ChunkLoader.Load(_x, _z, _world.Seed);
             ChunkCache.Set(_x, _z, chunk);
         }
 

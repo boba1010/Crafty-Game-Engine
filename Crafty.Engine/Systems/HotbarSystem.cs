@@ -6,7 +6,7 @@ using CraftyNative.ThreeD.Meshes;
 
 namespace Crafty.Engine.Systems;
 
-public sealed class HotbarSystem : ISystem
+public sealed class HotbarSystem : IGameplaySystem
 {
     private const int SlotCount = 9;
     private int _selectedSlot;

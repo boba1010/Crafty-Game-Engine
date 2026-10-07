@@ -9,11 +9,12 @@
 
   <ItemGroup>
     <PackageReference Include="StbImageSharp" Version="2.30.16" />
+    <PackageReference Include="StbTrueTypeSharp" Version="1.26.13" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\My Programs\Vulcan\Vulcan\Vulcan.csproj" />
     <ProjectReference Include="..\Crafty.ChunkGeneration\Crafty.ChunkGeneration.csproj" />
   </ItemGroup>
-
+  
 </Project>

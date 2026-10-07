@@ -10,7 +10,7 @@ using CraftyNative.ThreeD.World;
 
 namespace Crafty.Engine.Systems;
 
-public class ChunkStreamingSystem(World world) : ISystem
+public class ChunkStreamingSystem(World world) : IGameplaySystem
 {
     public int StreamingDistance { get; set; } = 8;
 

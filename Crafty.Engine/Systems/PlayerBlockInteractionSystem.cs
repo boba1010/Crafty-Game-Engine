@@ -8,7 +8,7 @@ using CraftyNative.ThreeD.Physics;
 using System.Numerics;
 namespace Crafty.Engine.Systems;
 
-public sealed class PlayerBlockInteractionSystem(World world) : ISystem
+public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
 {
     public float Reach { get; set; } = 6f;
     public float BreakCooldown { get; set; } = 0.15f;
@@ -18,7 +18,7 @@ public sealed class PlayerBlockInteractionSystem(World world) : ISystem
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        if (GameStateManager.IsPaused || GameStateManager.IsInventory)
+        if (GameStateManager.IsInventory)
             return;
 
         var cameraObject = scene.GetEntitiesWith<Camera>().FirstOrDefault();

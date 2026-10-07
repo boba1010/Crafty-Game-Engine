@@ -8,7 +8,7 @@ using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public sealed class PlayerMovementSystem : ISystem
+public sealed class PlayerMovementSystem : IGameplaySystem
 {
     public double Speed { get; set; } = 5;
     public double Gravity {get;set;} = 30;
@@ -56,7 +56,7 @@ public sealed class PlayerMovementSystem : ISystem
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
+        if (GameStateManager.IsInventory)
             return;
 
         foreach (var player in scene.GetEntitiesWith<Player>())

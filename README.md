@@ -4,16 +4,18 @@
 
 Crafty is a data-oriented voxel game built from the ground up with a custom runtime, rendering stack, and game engine.
 
-**Current release:** `EA_26.10.3`
+**Current release:** `EA_26.10.4`
 
 ## Releases
 
-| Release                 | Status     |
-| ----------------------- | ---------- |
-| `EA_26.10.3`            | Released   |
-| `EA_26.10.2-Addition-2` | Released   |
-| `EA_26.10.2`            | Released   |
-| `EA_26.10`              | Released   |
+| Release                 | Status        |
+| ----------------------- | ----------    |
+| `26.10.7 Alpha-1`       | Coming soon   |
+| `EA_26.10.4`            | Released      |
+| `EA_26.10.3`            | Released      |
+| `EA_26.10.2-Addition-2` | Released      |
+| `EA_26.10.2`            | Released      |
+| `EA_26.10`              | Released      |
 
 Crafty's development is currently in **Early Access**. New systems and gameplay features are continuously being added as the engine and game evolve.
 

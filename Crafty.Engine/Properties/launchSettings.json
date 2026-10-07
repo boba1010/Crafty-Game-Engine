@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Crafty.Engine": {
+      "commandName": "Project",
+      "commandLineArgs": "--config-path launch.json"
+    }
+  }
+}

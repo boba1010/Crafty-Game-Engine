@@ -12,7 +12,7 @@ namespace Crafty.Engine.Systems;
 /// sets LocalPosition / LocalRotation (camera-space); HierarchySystem does the rest.
 /// Must run BEFORE HierarchySystem (insert it at index 0 of Scene.Systems).
 /// </summary>
-internal sealed class HandViewModelSystem(WorldObject hand, AnimationManager animation) : ISystem
+internal sealed class HandViewModelSystem(WorldObject hand, AnimationManager animation) : IGameplaySystem
 {
     public static readonly Vector3 RestRotation = new(1.1f, 0f, 0f);       // ~63 deg up
     public static readonly Vector3 RestPosition = new(0.56f, -0.95f, -0.7f);
@@ -23,7 +23,7 @@ internal sealed class HandViewModelSystem(WorldObject hand, AnimationManager ani
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        bool uiActive = GameStateManager.IsPaused || GameStateManager.IsInventory;
+        bool uiActive = GameStateManager.IsInventory;
 
         bool down = SystemAPI.Input.IsMouseButtonDown(MouseButton.Left);
 

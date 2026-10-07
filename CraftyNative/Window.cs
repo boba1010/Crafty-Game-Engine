@@ -22,7 +22,7 @@ public abstract class Window : IDisposable
     public event EventHandler<bool>? Focused;
     public InputManager InputManager { get; private set; } = null!;
     public IWindow NativeWindow { get; private set; } = null!;
-    public Vector2D<int> Size { get; private set; } = new(1280, 720);
+    public Vector2 Size { get; private set; } = new(1280, 720);
 
     public void Initialize()
     {
@@ -45,15 +45,15 @@ public abstract class Window : IDisposable
         Focused?.Invoke(this, focused);
     }
 
-    public void Resize(Vector2D<int> size)
+    public void Resize(Vector2 size)
     {
         Size = size;
-        NativeWindow.Size = size;
+        NativeWindow.Size = new((int)size.X, (int)size.Y);
         OnResize(size);
     }
 
 
-    protected virtual void OnResize(Vector2D<int> size) { }
+    protected virtual void OnResize(Vector2 size) { }
     protected virtual void OnMouseMove(Vector2 position) { }
     protected virtual void OnKeyDown(Key key) { }
     protected virtual void OnKeyUp(Key key) { }
@@ -100,15 +100,20 @@ public abstract class Window : IDisposable
         Render(deltaTime);
     }
 
-    private void OnWindowResize(Silk.NET.Maths.Vector2D<int> size)
+    private void OnWindowResize(Vector2D<int> size)
     {
-        Size = size;
-        OnResize(size);
+        Size = new(size.X, size.Y);
+        OnResize(Size);
     }
 
     public void Activate()
     {
         NativeWindow.Run();
+    }
+
+    public void Close()
+    {
+        NativeWindow.Close();
     }
 
     public virtual void Dispose()

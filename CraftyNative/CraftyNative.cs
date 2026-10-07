@@ -2,6 +2,7 @@
 using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
+using CraftyNative.UI;
 using Silk.NET.Windowing;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -238,7 +239,11 @@ internal unsafe static class CraftyNative
         ((D3D11CommandBuffer)_commandBuffer).RenderTargetView = ((D3D11Swapchain)_swapchain).RenderTargetView;
         ((D3D11CommandBuffer)_commandBuffer).DepthStencilView = ((D3D11Texture)_depthTexture).DepthStencilView;
 
-        HudRenderer.Initialize(Device, new(Window.Size.X, Window.Size.Y));
+        Vector2 size = new(Window.Size.X, Window.Size.Y);
+
+        HudRenderer.Initialize(Device, size);
+        UIRenderer.Initialize(Device);
+        UITextRenderer.Initialize(Device, FontLoader.Load(Device, "Assets/Fonts/Roboto-Regular.ttf", 32));
 
         Window.FramebufferResize += newSize =>
         {
@@ -350,7 +355,11 @@ internal unsafe static class CraftyNative
                 DrawMesh(renderable.Mesh, model * view * projection, objectId.ToString());
         }
 
-        HudRenderer.Render(_commandBuffer, new(size.X, size.Y));
+        Vector2 vector2Size = new(size.X, size.Y);
+
+        HudRenderer.Render(_commandBuffer, vector2Size);
+        UIRenderer.Render(_commandBuffer, vector2Size);
+        UITextRenderer.Render(_commandBuffer, vector2Size);
 
         _commandBuffer.End();
 
@@ -395,7 +404,6 @@ internal unsafe static class CraftyNative
     private static void UpdateVertexBuffer(GPUMesh gpuMesh, Mesh mesh)
     {
         var data = MemoryMarshal.AsBytes(mesh.Vertices.AsSpan());
-
         gpuMesh.VertexBuffer.Upload(data);
     }
 
@@ -409,6 +417,8 @@ internal unsafe static class CraftyNative
     public static void Dispose()
     {
         HudRenderer.Dispose();
+        UIRenderer.Dispose();
+        UITextRenderer.Dispose();
 
         _depthTexture?.Dispose();
         _constantBuffer?.Dispose();

@@ -10,7 +10,7 @@ using System.Numerics;
 
 namespace Crafty.Engine.Systems;
 
-public sealed class CollisionSystem : ISystem
+public sealed class CollisionSystem : IGameplaySystem
 {
     public void Update(ref Scene scene, double deltaTime)
     {

@@ -10,21 +10,21 @@ public sealed class World
     public ulong Seed { get; set; }
     public event Action<BlockChanged>? BlockChanged;
 
-    private readonly ConcurrentDictionary<(int X, int Z), IChunk> _chunks = [];
+    public readonly ConcurrentDictionary<(int X, int Z), IChunk> chunks = [];
 
     public IChunk? GetChunk(int x, int z)
     {
-        return _chunks.GetValueOrDefault((x, z));
+        return chunks.GetValueOrDefault((x, z));
     }
 
     public void LoadChunk(IChunk chunk)
     {
-        _chunks[(chunk.X, chunk.Z)] = chunk;
+        chunks[(chunk.X, chunk.Z)] = chunk;
     }
 
     public void UnloadChunk(int x, int z)
     {
-        _chunks.Remove((x, z), out _);
+        chunks.Remove((x, z), out _);
     }
 
     public BlockPlacement GetBlock(int x, int y, int z)

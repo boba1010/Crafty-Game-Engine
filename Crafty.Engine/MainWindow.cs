@@ -5,6 +5,7 @@ using Crafty.Engine.Components;
 using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
 using Crafty.Engine.Systems;
+using Crafty.Engine.UI;
 using CraftyNative;
 using CraftyNative.Animation;
 using CraftyNative.ECS;
@@ -12,6 +13,7 @@ using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Physics;
+using CraftyNative.UI;
 using System.Numerics;
 
 namespace Crafty.Engine;
@@ -19,15 +21,17 @@ namespace Crafty.Engine;
 public sealed class MainWindow : Window
 {
     public PlayerCameraSystem CameraSystem;
-    private GameWorld _world = null!;
-    
+    private GameWorld _gameWorld = null!;
+    private World _world = null!;
+    private bool _quitRequested;
+
     public MainWindow()
     {
         Initialize();
 
-        ChunkLoader.WorldDirectory = "saves/silly";
         var seed = WorldSeed.Generate();
-        ChunkLoader.WorldGenService = new WorldGenService(ChunkLoader.WorldDirectory, seed);
+        var worldPath = Program.LaunchConfig.SelectedWorldPath;
+        ChunkLoader.WorldGenService = new WorldGenService(Path.GetDirectoryName(worldPath)!);
 
         GameAPIs.Initialize();
         
@@ -36,7 +40,19 @@ public sealed class MainWindow : Window
         Activated += Window_Activated;
         Focused += Window_Focused;
     }
-    
+
+    private void Resume()
+    {
+        GameStateManager.Set(GameState.Playing);
+        InputManager.CursorMode = Cursor.Raw;
+    }
+
+    private void Pause()
+    {
+        GameStateManager.Set(GameState.Paused);
+        InputManager.CursorMode = Cursor.Normal;
+    }
+
     private void Window_Focused(object? sender, bool focused)
     {
         if (!focused)
@@ -61,8 +77,22 @@ public sealed class MainWindow : Window
         }
 
         CameraSystem.IsMouseMoving = true;
-        CameraSystem.Update(ref _world.Scene);
+        CameraSystem.Update(ref _gameWorld.Scene);
         CameraSystem.IsMouseMoving = false;
+    }
+
+    protected override void OnKeyDown(Key key)
+    {
+        if (key is Key.Escape && GameStateManager.IsPlaying)
+            Pause();
+        else if (key is Key.Escape && GameStateManager.IsPaused)
+            Resume();
+    }
+
+    private void QuitAndSave()
+    {
+        WorldManager.Save();
+        _quitRequested = true;
     }
 
     private AnimatedMesh _playerAnimation = null!;
@@ -71,54 +101,56 @@ public sealed class MainWindow : Window
     private WorldObject _camera = default;
     private void Window_Activated(object? sender, EventArgs e)
     {
-        _world = new(this)
+        GameStateManager.Set(GameState.Paused);
+
+        _gameWorld = new(this)
         {
             Scene = new()
         };
 
-        GameStateManager.Initialize();
+        PauseMenu.Initialize(Resume, QuitAndSave);
 
-
-        _camera = _world.Scene.CreateObject();
+        _camera = _gameWorld.Scene.CreateObject();
         var playerModel = BuildPlayer();
-        _player = _world.Scene.CreateObject();
+        _player = _gameWorld.Scene.CreateObject();
         _hand = BuildHand();
 
-        _world.Scene.AddComponent(_camera, new Transform
+        _gameWorld.Scene.AddComponent(_camera, new Transform
         {
             LocalPosition = new(0, 0.5f, 0),
         });
-        _world.Scene.AddComponent(_camera, new Camera
+        _gameWorld.Scene.AddComponent(_camera, new Camera
         {
             FieldOfView = 70f * MathF.PI / 180f,
             NearPlane = 0.1f,
             FarPlane = 1000f
         });
-        _world.Scene.SetParent(playerModel, _player);
-        _world.Scene.SetParent(_camera, _player);
-        _world.Scene.SetParent(_hand, _camera);
-        _world.Scene.AddComponent(_player, new Player());
-        _world.Scene.AddComponent(_player, new Inventory());
-        _world.Scene.AddComponent(_player, new Hotbar());
-        _world.Scene.AddComponent(_player, new Transform() { Position = new(0, 75, 0) });
-        _world.Scene.AddComponent(_player, new Movement());
-        _world.Scene.AddComponent(_player, new Collider(new(0.6f, 1.8f, 0.6f)));
+        _gameWorld.Scene.SetParent(playerModel, _player);
+        _gameWorld.Scene.SetParent(_camera, _player);
+        _gameWorld.Scene.SetParent(_hand, _camera);
+        _gameWorld.Scene.AddComponent(_player, new Player());
+        _gameWorld.Scene.AddComponent(_player, new Inventory());
+        _gameWorld.Scene.AddComponent(_player, new Hotbar());
+        _gameWorld.Scene.AddComponent(_player, new Transform() { Position = new(0, 75, 0) });
+        _gameWorld.Scene.AddComponent(_player, new Movement());
+        _gameWorld.Scene.AddComponent(_player, new Collider(new(0.6f, 1.8f, 0.6f)));
 
-        var world = WorldIOManager.LoadWorld(Path.Combine(ChunkLoader.WorldDirectory, "silly.world"));
-        world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
+        _world = WorldManager.Load();
+        _world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
 
-        _world.Scene.Systems.Add(new HandViewModelSystem(_hand, _animationManager));
-        _world.Scene.Systems.Add(new PlayerMovementSystem());
-        _world.Scene.Systems.Add(new HotbarSystem());
-        _world.Scene.Systems.Add(new InventorySystem());
-        _world.Scene.Systems.Add(new ChunkStreamingSystem(world));
-        _world.Scene.Systems.Add(new CollisionSystem());
-        _world.Scene.Systems.Add(new PlayerBlockInteractionSystem(world));
-        _world.Scene.Systems.Add(new WorldMeshUpdateSystem(world));
+        _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _animationManager));
+        _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
+        _gameWorld.Scene.Systems.Add(new HotbarSystem());
+        _gameWorld.Scene.Systems.Add(new InventorySystem());
+        _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));
+        _gameWorld.Scene.Systems.Add(new CollisionSystem());
+        _gameWorld.Scene.Systems.Add(new PlayerBlockInteractionSystem(_world));
+        _gameWorld.Scene.Systems.Add(new WorldMeshUpdateSystem(_world));
 
         SystemAPI.JobSystem = new JobSystem();
     }
 
+    // for third person rendering in later alpha versions
     private WorldObject BuildPlayer()
     {
         var mesh = MeshBuilder.BuildPlayerMesh();
@@ -126,36 +158,34 @@ public sealed class MainWindow : Window
         _playerAnimation = PlayerAnimation.Create(mesh);
         _animationManager = new(_playerAnimation);
 
-        var playerModel = _world.Scene.CreateObject();
+        var playerModel = _gameWorld.Scene.CreateObject();
 
-        _world.Scene.AddComponent(playerModel, new Transform
+        _gameWorld.Scene.AddComponent(playerModel, new Transform
         {
             LockXAxis = true,
             LockZAxis = true,
-            //Position = new(0, 75, 0),
             LocalPosition = new(0, -0.9f, 0)
         });
 
-        _world.Scene.SetRenderable(playerModel, new(mesh, true));
+        _gameWorld.Scene.SetRenderable(playerModel, new(mesh, false));
 
         return playerModel;
     }
 
     private WorldObject _hand;
-
     private WorldObject BuildHand()
     {
         var mesh = MeshBuilder.BuildPlayerHandMesh();
-        var hand = _world.Scene.CreateObject();
+        var hand = _gameWorld.Scene.CreateObject();
 
-        _world.Scene.AddComponent(hand, new Transform
+        _gameWorld.Scene.AddComponent(hand, new Transform
         {
             LocalPosition = HandViewModelSystem.RestPosition,
             LocalRotation = HandViewModelSystem.RestRotation,
             RotateAroundParent = true
         });
 
-        _world.Scene.SetRenderable(hand, new(mesh, true));
+        _gameWorld.Scene.SetRenderable(hand, new(mesh, true));
         return hand;
     }
 
@@ -166,13 +196,19 @@ public sealed class MainWindow : Window
 
     protected override void Render(double deltaTime)
     {
-        ref var movement = ref _world.Scene.GetComponent<Movement>(_player);
-        ref var cameraTransform = ref _world.Scene.GetComponent<Transform>(_camera);
-        ref var handTransform = ref _world.Scene.GetComponent<Transform>(_hand);
+        ref var movement = ref _gameWorld.Scene.GetComponent<Movement>(_player);
+        ref var cameraTransform = ref _gameWorld.Scene.GetComponent<Transform>(_camera);
+        ref var handTransform = ref _gameWorld.Scene.GetComponent<Transform>(_hand);
         bool isMoving = movement.Velocity.X != 0f || movement.Velocity.Z != 0f;
         _animationManager.Update((float)deltaTime, isMoving, ref cameraTransform);
 
-        _world.Render(deltaTime);
+        if (GameStateManager.IsPaused)
+        {
+            UIRenderer.DrawRectangle(new(0, 0), Size, new(0, 0, 0, 0.35f));
+            PauseMenu.Render(Size);
+        }
+
+        _gameWorld.Render(deltaTime);
 
         double frameTime = deltaTime * 1000.0;
 
@@ -194,12 +230,15 @@ public sealed class MainWindow : Window
             _frames = 0;
             WorstFrameTime = 0;
         }
+
+        if (_quitRequested)
+            Close();
     }
 
     public override void Dispose()
     {
         SystemAPI.JobSystem.Dispose();
-        _world?.Dispose();
+        _gameWorld?.Dispose();
         base.Dispose();
     }
 }

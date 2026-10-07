@@ -1,12 +1,10 @@
-﻿using CraftyNative;
-
-namespace Crafty.Engine;
+﻿namespace CraftyNative;
 
 public static class GameStateManager
 {
-    public static GameState Current { get; private set; } = GameState.Gameplay;
+    public static GameState Current { get; private set; } = GameState.Playing;
 
-    public static bool IsGameplay => Current == GameState.Gameplay;
+    public static bool IsPlaying => Current == GameState.Playing;
     public static bool IsInventory => Current == GameState.Inventory;
     public static bool IsPaused => Current == GameState.Paused;
 
@@ -42,7 +40,7 @@ public static class GameStateManager
         else
         {
             SystemAPI.Input.CursorMode = Cursor.Raw;
-            Set(GameState.Gameplay);
+            Set(GameState.Playing);
         }
     }
 }
@@ -50,6 +48,6 @@ public static class GameStateManager
 public enum GameState
 {
     Paused,
-    Gameplay,
+    Playing,
     Inventory,
 }

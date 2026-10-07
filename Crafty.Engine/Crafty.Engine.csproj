@@ -27,6 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
+	<None Update="Assets\Fonts\Roboto-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+	
+  <ItemGroup>
     <Folder Include="Entities\" />
   </ItemGroup>
 

@@ -30,10 +30,10 @@ public sealed class InventorySystem : ISystem
     private static bool InPalette(int slot) => HudInventory.ActiveTab != 0 && slot >= HudInventory.Columns;
 
     // ---- Placeholders: replace with your registries ----
-    private static ushort[] CategoryBlocks(int tab) => [1, 2, 3];                        // e.g. BlockRegistry.ByCategory(tab - 1)
-    private static ushort ItemIdFor(ushort blockId) => blockId;                          // your real block -> item lookup
-    private static InventorySlot MatchRecipe(ReadOnlySpan<InventorySlot> grid2x2) => default; // your recipe registry
-    private static bool CanPlace(int slot, in InventorySlot item) => true;               // later: armor slots only take their armor type
+    private static ushort[] CategoryBlocks(int tab) => [1, 2, 3];
+    private static ushort ItemIdFor(ushort blockId) => blockId;
+    private static InventorySlot MatchRecipe(ReadOnlySpan<InventorySlot> grid2x2) => default;
+    private static bool CanPlace(int slot, in InventorySlot item) => true;
 
     public InventorySystem()
     {
@@ -81,7 +81,7 @@ public sealed class InventorySystem : ISystem
         _isOpen = false;
         _returnHeldOnClose = true;   // also returns the crafting grid, so always set
         HudInventory.Close();
-        GameStateManager.Set(GameState.Gameplay);
+        GameStateManager.Set(GameState.Playing);
         SystemAPI.Input.CursorMode = Cursor.Raw;
     }
 
@@ -90,9 +90,7 @@ public sealed class InventorySystem : ISystem
     public void Update(ref Scene scene, double deltaTime)
     {
         var player = scene.GetEntitiesWith<Inventory>().FirstOrDefault();
-        if (!scene.HasComponent<Inventory>(player) ||
-            !scene.HasComponent<Hotbar>(player) ||
-            !scene.HasComponent<Player>(player))
+        if (!scene.HasComponent<Inventory>(player) || !scene.HasComponent<Hotbar>(player) || !scene.HasComponent<Player>(player))
             return;
 
         ref var inventory = ref scene.GetComponent<Inventory>(player);

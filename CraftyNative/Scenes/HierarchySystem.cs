@@ -4,7 +4,6 @@ using System.Numerics;
 
 namespace CraftyNative.Scenes;
 
-// Class (not struct) so the scratch list below survives between frames.
 // Scene's constructor does Systems.Add(new HierarchySystem()), which still compiles.
 internal sealed class HierarchySystem : ISystem
 {

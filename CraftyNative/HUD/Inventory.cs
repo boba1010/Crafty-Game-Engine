@@ -860,7 +860,6 @@ public static class Inventory
 
         var (center, scale) = Hotbar.GetBounds(mesh);
 
-        // Turns toward the cursor, like Minecraft's. Flip the signs if it looks away from you.
         float yaw = Math.Clamp((_cursorPosition.X - (o.X + ModelWidth * 0.5f)) / 150f, -1f, 1f) * 0.6f;
         float pitch = Math.Clamp((_cursorPosition.Y - (o.Y + ModelHeight * 0.3f)) / 150f, -1f, 1f) * 0.3f;
 
