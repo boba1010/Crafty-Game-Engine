@@ -8,6 +8,7 @@ public sealed class Chunk : IChunk
     public int X { get; set; }
     public int Z { get; set; }
     public List<BlockPlacement> Blocks { get; set; } = [];
+    public bool IsModified { get; set; }
 
     public BlockPlacement GetBlock(int x, int y, int z)
     {

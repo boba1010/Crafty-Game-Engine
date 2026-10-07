@@ -76,12 +76,12 @@ public struct Scene
         return (ComponentStore<T>)value;
     }
 
-    public void AddComponent<T>(WorldObject obj, T component) where T : unmanaged, IComponent
+    public void AddComponent<T>(WorldObject obj, T component) where T : struct, IComponent
     {
         GetStore<T>().Add(obj.Id, component);
     }
 
-    public ref T GetComponent<T>(WorldObject obj) where T : unmanaged, IComponent
+    public ref T GetComponent<T>(WorldObject obj) where T : struct, IComponent
     {
         return ref GetStore<T>().Get(obj.Id);
     }
@@ -92,7 +92,7 @@ public struct Scene
             yield return new WorldObject(id);
     }
 
-    public bool HasComponent<T>(WorldObject obj) where T : unmanaged, IComponent
+    public bool HasComponent<T>(WorldObject obj) where T : struct, IComponent
     {
         return GetStore<T>().Contains(obj.Id);
     }

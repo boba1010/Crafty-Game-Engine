@@ -84,16 +84,121 @@ public static class BlocksCreator
         };
     }
 
+    private static BlockModel CreateOneTwoSidedBlockModel(string textureId)
+    {
+        return new BlockModel()
+        {
+            Faces = 
+            [
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.West,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.East,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.Bottom,
+                },
+                new()
+                {
+                    Texture = textureId + ".top",
+                    Direction = BlockFaceDirection.Top,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.South,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.North,
+                },
+            ]
+        };
+    }
+
+    private static BlockModel CreateTwoSidedBlockModel(string textureId)
+    {
+        return new BlockModel()
+        {
+            Faces = 
+            [
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.West,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.East,
+                },
+                new()
+                {
+                    Texture = textureId + ".vertical",
+                    Direction = BlockFaceDirection.Bottom,
+                },
+                new()
+                {
+                    Texture = textureId + ".vertical",
+                    Direction = BlockFaceDirection.Top,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.South,
+                },
+                new()
+                {
+                    Texture = textureId + ".side",
+                    Direction = BlockFaceDirection.North,
+                },
+            ]
+        };
+    }
+
     private static CollisionShape CreateBlockCollider()
     {
         return CollisionShape.FullCube;
     }
 
-    public static Block CreateOneSidedTextureBlock(string textureId)
+    public static Block CreateOneSidedTextureBlock(string id)
     {
         var block = new Block()
         {
-            Model = CreateOneSidedBlockModel(textureId),
+            Id = id,
+            Model = CreateOneSidedBlockModel(id),
+            Collision = CreateBlockCollider(),
+        };
+
+        return block;
+    }
+
+    public static Block CreateOneTwoSidedTextureBlock(string id)
+    {
+        var block = new Block()
+        {
+            Id = id,
+            Model = CreateOneTwoSidedBlockModel(id),
+            Collision = CreateBlockCollider(),
+        };
+
+        return block;
+    }
+
+    public static Block CreateTwoSidedTextureBlock(string id)
+    {
+        var block = new Block()
+        {
+            Id = id,
+            Model = CreateTwoSidedBlockModel(id),
             Collision = CreateBlockCollider(),
         };
 
@@ -104,6 +209,8 @@ public static class BlocksCreator
     {
         var block = new Block()
         {
+            Name = "Air",
+            Id = "crafty.air",
             Model = CreateOneSidedBlockModel("crafty.air"),
             Collision = new([])
         };
@@ -111,11 +218,12 @@ public static class BlocksCreator
         return block;
     }
 
-    public static Block CreateThreeSidedTextureBlock(string textureId)
+    public static Block CreateThreeSidedTextureBlock(string id)
     {
         var block = new Block()
         {
-            Model = CreateThreeSidedBlockModel(textureId),
+            Id = id,
+            Model = CreateThreeSidedBlockModel(id),
             Collision = CreateBlockCollider(),
         };
 

@@ -92,6 +92,7 @@ public sealed class MainWindow : Window
     private void QuitAndSave()
     {
         WorldManager.Save();
+        WorldManager.DeleteUnchangedChunks();
         _quitRequested = true;
     }
 
@@ -135,7 +136,8 @@ public sealed class MainWindow : Window
         _gameWorld.Scene.AddComponent(_player, new Movement());
         _gameWorld.Scene.AddComponent(_player, new Collider(new(0.6f, 1.8f, 0.6f)));
 
-        _world = WorldManager.Load();
+        WorldManager.Load();
+        _world = WorldManager.Current;
         _world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
 
         _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _animationManager));

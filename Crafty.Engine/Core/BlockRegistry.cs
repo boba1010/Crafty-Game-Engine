@@ -5,16 +5,24 @@ namespace Crafty.Engine.Core;
 
 public sealed class BlockRegistry : IBlockRegistry
 {
-    private static Dictionary<ushort, Block> blocks = [];
-    private static ushort _nextId;
+    private static readonly Dictionary<ushort, Block> _blocks = [];
+    private ushort _nextId = 0;
 
     public Block Get(ushort id)
     {
-        return blocks[id];
+        if (!_blocks.TryGetValue(id, out var item))
+            throw new KeyNotFoundException($"block ID {id} is not registered.");
+
+        return item;
+    }
+
+    public ushort[] GetAllIds()
+    {
+        return [.. _blocks.Keys];
     }
 
     public void Register(Block block)
     {
-        blocks[_nextId++] = block;
+        _blocks[_nextId++] = block;
     }
 }

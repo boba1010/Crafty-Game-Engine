@@ -78,6 +78,8 @@ public sealed class World
 
         chunk.SetBlock(new(id, (byte)localX, (short)y, (byte)localZ));
 
+        chunk.IsModified = true;
+
         BlockChanged?.Invoke(new(x, y, z, oldId, id));
     }
 }

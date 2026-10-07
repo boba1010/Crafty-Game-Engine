@@ -5,7 +5,7 @@ namespace Crafty.Engine.Core;
 public sealed class ItemRegistry : IItemRegistry
 {
     private static readonly Dictionary<ushort, Item> _items = [];
-    private static ushort _nextId;
+    private ushort _nextId;
 
     public void Register(Item item)
     {
@@ -18,5 +18,10 @@ public sealed class ItemRegistry : IItemRegistry
             throw new KeyNotFoundException($"Item ID {id} is not registered.");
 
         return item;
+    }
+
+    public ushort[] GetAllIds()
+    {
+        return [.. _items.Keys];
     }
 }

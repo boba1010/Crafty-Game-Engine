@@ -135,7 +135,7 @@ public class ChunkStreamingSystem(World world) : IGameplaySystem
         foreach (var (x, z) in _loadedChunks)
         {
             if (!requiredChunks.Contains((x, z)))
-                SystemAPI.JobSystem.Submit(new UnloadChunkJob(_world, x, z));
+                SystemAPI.JobSystem.Submit(new UnloadChunkJob(x, z));
         }
 
         _loadedChunks = requiredChunks;

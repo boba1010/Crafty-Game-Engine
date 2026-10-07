@@ -11,7 +11,7 @@ public sealed class HotbarSystem : IGameplaySystem
     private const int SlotCount = 9;
     private int _selectedSlot;
     private readonly ushort?[] _shownBlocks = new ushort?[SlotCount];
-    private readonly Dictionary<int, Mesh> _blockMeshes = [];
+    private readonly Dictionary<ushort, Mesh> _blockMeshes = [];
 
     public HotbarSystem()
     {

@@ -4,9 +4,9 @@ using Crafty.SDK.Debugging;
 
 namespace Crafty.Engine.Core;
 
-public class ModContext : IModContext
+public class ModContext(ILogger logger, IBlockRegistry blockRegistry, IItemRegistry itemRegistry) : IModContext
 {
-    public ILogger Logger => new Logger();
-    public IBlockRegistry Blocks => new BlockRegistry();
-    public IItemRegistry Items => new ItemRegistry();
+    public ILogger Logger => logger;
+    public IBlockRegistry Blocks => blockRegistry;
+    public IItemRegistry Items => itemRegistry;
 }

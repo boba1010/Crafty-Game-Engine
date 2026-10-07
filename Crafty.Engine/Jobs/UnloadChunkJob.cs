@@ -5,9 +5,8 @@ using CraftyNative.ThreeD.World;
 
 namespace Crafty.Engine.Jobs;
 
-public readonly struct UnloadChunkJob(World world, int x, int z) : IJob
+public readonly struct UnloadChunkJob(int x, int z) : IJob
 {
-    private readonly World _world = world;
     private readonly int _x = x;
     private readonly int _z = z;
 
@@ -15,6 +14,5 @@ public readonly struct UnloadChunkJob(World world, int x, int z) : IJob
     {
         WorldMeshManager.RemoveChunk(_x, _z);
         ChunkCache.Remove(_x, _z);
-        _world.UnloadChunk(_x, _z);
     }
 }

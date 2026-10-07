@@ -49,6 +49,7 @@ public static class WorldIOManager
         using var writer = new BinaryWriter(compression);
 
         writer.Write(chunk.Blocks.Count);
+        writer.Write(chunk.IsModified);
 
         foreach (var block in chunk.Blocks)
             writer.Write(block.Id);
@@ -62,6 +63,7 @@ public static class WorldIOManager
         using var reader = new BinaryReader(compression);
 
         int count = reader.ReadInt32();
+        bool isModified = reader.ReadBoolean();
 
         var chunk = new Chunk
         {
@@ -75,14 +77,15 @@ public static class WorldIOManager
         {
             var id = reader.ReadUInt16();
 
-            int blockX = i / (Chunk.Size * 417);
-            int blockZ = (i / 417) % Chunk.Size;
-            int y = i % 417;
+            int blockX = i / (Chunk.Size * 416);
+            int blockZ = (i / 416) % Chunk.Size;
+            int y = i % 416;
 
             blocks.Add(new(id, (byte)blockX, (short)y, (byte)blockZ));
         }
 
         chunk.Blocks = blocks;
+        chunk.IsModified = isModified;
         return chunk;
     }
 }

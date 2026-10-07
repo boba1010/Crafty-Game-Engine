@@ -1,6 +1,7 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
+using Crafty.SDK.Client;
 using Crafty.SDK.Client.Blocks;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.World;
@@ -196,6 +197,24 @@ public static class MeshBuilder
         // One block at the origin, all six faces (no neighbours to cull against)
         foreach (var face in Enum.GetValues<Face>())
             AddBlockFace(ref mesh, 0, 0, 0, face, model, atlas);
+
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
+    }
+
+    public static Mesh BuildItemMesh(Item item)
+    {
+        if (item.Texture is not { } texture)
+            return new Mesh([], [], vertexStride: 20);
+
+        var atlas = ChunkTextureAtlasBuilder.Build(new HashSet<string> { texture.Path }, 32);
+        var region = atlas.Get(texture.Path);
+        var mesh = new MeshData();
+
+        AddFace(0, 0, 0, Face.Front, region, ref mesh);
+        AddFace(0, 0, 0, Face.Back, region, ref mesh);
+
+        for (int i = 2; i < mesh.Vertices.Count; i += 5)
+            mesh.Vertices[i] = 0.5f;
 
         return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
     }
