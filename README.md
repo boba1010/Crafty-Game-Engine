@@ -10,7 +10,7 @@ Crafty is a data-oriented voxel game built from the ground up with a custom runt
 
 | Release                 | Status        |
 | ----------------------- | ----------    |
-| `26.10.7 Alpha-1`       | Coming soon   |
+| `26.10.8 Alpha-1`       | Coming soon   |
 | `EA_26.10.4`            | Released      |
 | `EA_26.10.3`            | Released      |
 | `EA_26.10.2-Addition-2` | Released      |
