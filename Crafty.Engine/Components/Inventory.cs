@@ -10,10 +10,10 @@ public struct Inventory : IComponent
     public CraftingSlots Crafting;
 }
 
-public struct InventorySlot(ushort itemId, int count, ushort? blockId)
+public struct InventorySlot(uint itemId, int count, uint? blockId)
 {
-    public ushort ItemId = itemId;
-    public ushort? BlockId = blockId;
+    public uint ItemId = itemId;
+    public uint? BlockId = blockId;
     public int Count = count;
 }
 

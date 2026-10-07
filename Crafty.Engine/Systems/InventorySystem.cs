@@ -21,8 +21,8 @@ public sealed class InventorySystem : ISystem
     private int _shownTab = -1;
     private readonly int[] _tabPages = new int[HudInventory.MaxTabs];
 
-    private static readonly Dictionary<ushort, CraftyNative.ThreeD.Meshes.Mesh> _meshCache = [];
-    private static Dictionary<string, ushort>? _blockIds;
+    private static readonly Dictionary<uint, CraftyNative.ThreeD.Meshes.Mesh> _meshCache = [];
+    private static Dictionary<string, uint>? _blockIds;
     private readonly InventorySlot[] _synced = new InventorySlot[HudInventory.TotalSlots];
     private bool _modelSynced;
 
@@ -30,11 +30,11 @@ public sealed class InventorySystem : ISystem
     private static bool InPalette(int slot) => HudInventory.ActiveTab != 0 && slot >= HudInventory.Columns;
 
     // ---- Placeholders: replace with your registries ----
-    private static ushort[] CategoryItems(int tab) => GameAPIs.ItemRegistry.GetAllIds();
-    private static SDK.Client.Item GetItem(ushort itemId) => GameAPIs.ItemRegistry.Get(itemId);
-    private static InventorySlot MakeSlot(ushort itemId, int count) => new(itemId, count, BlockIdFor(itemId));
+    private static uint[] CategoryItems(int tab) => GameAPIs.ItemRegistry.GetAllIds();
+    private static SDK.Client.Item GetItem(uint itemId) => GameAPIs.ItemRegistry.Get(itemId);
+    private static InventorySlot MakeSlot(uint itemId, int count) => new(itemId, count, BlockIdFor(itemId));
 
-    private static ushort? BlockIdFor(ushort itemId)
+    private static uint? BlockIdFor(uint itemId)
     {
         if (GetItem(itemId).BlockId is not { } blockName)
             return null;
@@ -43,9 +43,9 @@ public sealed class InventorySystem : ISystem
         return _blockIds.TryGetValue(blockName, out var id) ? id : null;
     }
 
-    private static Dictionary<string, ushort> BuildBlockLookup()
+    private static Dictionary<string, uint> BuildBlockLookup()
     {
-        var map = new Dictionary<string, ushort>();
+        var map = new Dictionary<string, uint>();
 
         foreach (var id in GameAPIs.BlockRegistry.GetAllIds())
             map[GameAPIs.BlockRegistry.Get(id).Id] = id;
@@ -185,7 +185,7 @@ public sealed class InventorySystem : ISystem
     private void RefreshPalette()
     {
         int tab = HudInventory.ActiveTab;
-        var items = tab == 0 ? Array.Empty<ushort>() : CategoryItems(tab);
+        var items = tab == 0 ? [] : CategoryItems(tab);
 
         for (int i = 0; i < PerPage; i++)
         {
@@ -230,7 +230,7 @@ public sealed class InventorySystem : ISystem
         if (idx >= items.Length)
             return;
 
-        ushort id = items[idx];
+        uint id = items[idx];
         _heldSlot = MakeSlot(id, MaxStackFor(id));
         _heldIsCreative = true;
         SyncHeld();
@@ -460,7 +460,7 @@ public sealed class InventorySystem : ISystem
     {
         if (!_meshCache.TryGetValue(slot.ItemId, out var mesh))
         {
-            _meshCache[slot.ItemId] = mesh = slot.BlockId is ushort blockId
+            _meshCache[slot.ItemId] = mesh = slot.BlockId is uint blockId
                 ? MeshBuilder.BuildBlockMesh(blockId)                // block item -> 3D block
                 : MeshBuilder.BuildItemMesh(GetItem(slot.ItemId));   // normal item -> flat sprite
         }
@@ -468,9 +468,9 @@ public sealed class InventorySystem : ISystem
         return mesh;
     }
 
-    private static string ResolveKey(InventorySlot slot) => slot.BlockId is ushort id ? $"block_{id}" : $"item_{slot.ItemId}";
+    private static string ResolveKey(InventorySlot slot) => slot.BlockId is uint id ? $"block_{id}" : $"item_{slot.ItemId}";
 
-    private static int MaxStackFor(ushort itemId) => GetItem(itemId).MaxStackSize;
+    private static int MaxStackFor(uint itemId) => GetItem(itemId).MaxStackSize;
     private static int MaxStackFor(in InventorySlot s) => MaxStackFor(s.ItemId);
 
     private static bool SameItem(in InventorySlot a, in InventorySlot b)

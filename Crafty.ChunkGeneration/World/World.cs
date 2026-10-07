@@ -52,7 +52,7 @@ public sealed class World
         return chunk.GetBlock(localX, y, localZ);
     }
 
-    public void SetBlock(int x, int y, int z, ushort id)
+    public void SetBlock(int x, int y, int z, uint id)
     {
         int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
         int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
@@ -74,7 +74,7 @@ public sealed class World
         if (chunk is null)
             return;
 
-        ushort oldId = chunk.GetBlock(localX, y, localZ).Id;
+        uint oldId = chunk.GetBlock(localX, y, localZ).Id;
 
         chunk.SetBlock(new(id, (byte)localX, (short)y, (byte)localZ));
 

@@ -180,7 +180,7 @@ public static class MeshBuilder
         indices.Add(i + 3);
     }
 
-    public static Mesh BuildBlockMesh(ushort blockId)
+    public static Mesh BuildBlockMesh(uint blockId)
     {
         var model = GameAPIs.BlockRegistry.Get(blockId).Model;
 

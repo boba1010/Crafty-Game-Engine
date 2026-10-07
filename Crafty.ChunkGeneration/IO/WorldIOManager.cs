@@ -75,7 +75,7 @@ public static class WorldIOManager
 
         for (int i = 0; i < count; i++)
         {
-            var id = reader.ReadUInt16();
+            var id = reader.ReadUInt32();
 
             int blockX = i / (Chunk.Size * 416);
             int blockZ = (i / 416) % Chunk.Size;

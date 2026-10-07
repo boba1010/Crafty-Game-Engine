@@ -13,22 +13,28 @@
 	<EnableTrimAnalyzers>true</EnableTrimAnalyzers>
   </PropertyGroup>
 
-  <ItemGroup>
+    <ItemGroup>
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.23.0" />
-  </ItemGroup>
+    </ItemGroup>
 
-  <ItemGroup>
+    <ItemGroup>
     <ProjectReference Include="..\Crafty.ChunkGeneration\Crafty.ChunkGeneration.csproj" />
     <ProjectReference Include="..\Crafty.SDK\Crafty.SDK.csproj" />
     <ProjectReference Include="..\CraftyNative\CraftyNative.csproj" />
-  </ItemGroup>
+    </ItemGroup>
 
-  <ItemGroup>
-	<None Update="Assets\Fonts\Roboto-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+    <Target Name="CopyAssets" AfterTargets="Build">
+	    <ItemGroup>
+		    <AssetFiles Include="Assets\**\*" />
+	    </ItemGroup>
+
+	    <Copy
+		    SourceFiles="@(AssetFiles)"
+		    DestinationFiles="@(AssetFiles->'$(OutputPath)Assets\%(RecursiveDir)%(Filename)%(Extension)')" />
+    </Target>
 	
   <ItemGroup>
     <Folder Include="Entities\" />

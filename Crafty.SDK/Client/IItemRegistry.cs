@@ -2,7 +2,7 @@
 
 public interface IItemRegistry
 {
-    void Register(Item block);
-    Item Get(ushort id);
-    ushort[] GetAllIds();
+    public void Register(ItemCategory category, Item item);
+    Item Get(uint id);
+    uint[] GetAllIds();
 }

@@ -5,7 +5,7 @@ namespace Crafty.Engine.Helpers;
 
 public static class ChunkHelper
 {
-    public static ushort GetBlockIdByGlobalPosition(int x, int y, int z)
+    public static uint GetBlockIdByGlobalPosition(int x, int y, int z)
     {
         if ((uint)y >= 416)
             return 0;
