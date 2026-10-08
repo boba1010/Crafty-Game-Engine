@@ -1,5 +1,6 @@
 ﻿using Crafty.SDK;
 using Crafty.SDK.Client;
+using Silk.NET.Core.Win32Extras;
 
 namespace Crafty.Engine.MainMod;
 
@@ -735,5 +736,303 @@ public sealed class MainMod : IMod
             BlockId = "crafty.glass_pane"
         });
         context.Logger.Log("crafty.glass_pane created successfully");
+
+        Concrete(context);
+
+        Terracotta(context);
+    }
+
+    private void Concrete(IModContext context)
+    {
+        var whiteConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.white_concrete", "White Concrete");
+        context.Blocks.Register(BlockCategory.Building, whiteConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "White Concrete",
+            BlockId = "crafty.white_concrete"
+        });
+        context.Logger.Log("crafty.white_concrete created successfully");
+
+        var blackConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.black_concrete", "Black Concrete");
+        context.Blocks.Register(BlockCategory.Building, blackConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Black Concrete",
+            BlockId = "crafty.black_concrete"
+        });
+        context.Logger.Log("crafty.black_concrete created successfully");
+
+        var blueConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.blue_concrete", "Blue Concrete");
+        context.Blocks.Register(BlockCategory.Building, blueConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Blue Concrete",
+            BlockId = "crafty.blue_concrete"
+        });
+        context.Logger.Log("crafty.blue_concrete created successfully");
+
+        var grayConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.gray_concrete", "Gray Concrete");
+        context.Blocks.Register(BlockCategory.Building, grayConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Gray Concrete",
+            BlockId = "crafty.gray_concrete"
+        });
+        context.Logger.Log("crafty.gray_concrete created successfully");
+
+        var greenConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.green_concrete", "Green Concrete");
+        context.Blocks.Register(BlockCategory.Building, greenConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Green Concrete",
+            BlockId = "crafty.green_concrete"
+        });
+        context.Logger.Log("crafty.green_concrete created successfully");
+
+        var redConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.red_concrete", "Red Concrete");
+        context.Blocks.Register(BlockCategory.Building, redConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Red Concrete",
+            BlockId = "crafty.red_concrete"
+        });
+        context.Logger.Log("crafty.red_concrete created successfully");
+
+        var yellowConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.yellow_concrete", "Yellow Concrete");
+        context.Blocks.Register(BlockCategory.Building, yellowConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Yellow Concrete",
+            BlockId = "crafty.yellow_concrete"
+        });
+        context.Logger.Log("crafty.yellow_concrete created successfully");
+
+        var orangeConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.orange_concrete", "Orange Concrete");
+        context.Blocks.Register(BlockCategory.Building, orangeConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Orange Concrete",
+            BlockId = "crafty.orange_concrete"
+        });
+        context.Logger.Log("crafty.orange_concrete created successfully");
+
+        var pinkConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.pink_concrete", "Pink Concrete");
+        context.Blocks.Register(BlockCategory.Building, pinkConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Pink Concrete",
+            BlockId = "crafty.pink_concrete"
+        });
+        context.Logger.Log("crafty.pink_concrete created successfully");
+
+        var purpleConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.purple_concrete", "Purple Concrete");
+        context.Blocks.Register(BlockCategory.Building, purpleConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Purple Concrete",
+            BlockId = "crafty.purple_concrete"
+        });
+        context.Logger.Log("crafty.purple_concrete created successfully");
+
+        var magentaConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.magenta_concrete", "Magenta Concrete");
+        context.Blocks.Register(BlockCategory.Building, magentaConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Magenta Concrete",
+            BlockId = "crafty.magenta_concrete"
+        });
+        context.Logger.Log("crafty.magenta_concrete created successfully");
+
+        var limeConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.lime_concrete", "Lime Concrete");
+        context.Blocks.Register(BlockCategory.Building, limeConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Lime Concrete",
+            BlockId = "crafty.lime_concrete"
+        });
+        context.Logger.Log("crafty.lime_concrete created successfully");
+
+        var lightGrayConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.light_gray_concrete", "Light Gray Concrete");
+        context.Blocks.Register(BlockCategory.Building, lightGrayConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Light Gray Concrete",
+            BlockId = "crafty.light_gray_concrete"
+        });
+        context.Logger.Log("crafty.light_gray_concrete created successfully");
+
+        var lightBlueConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.light_blue_concrete", "Light Blue Concrete");
+        context.Blocks.Register(BlockCategory.Building, lightBlueConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Light Blue Concrete",
+            BlockId = "crafty.light_blue_concrete"
+        });
+        context.Logger.Log("crafty.light_blue_concrete created successfully");
+
+        var cyanConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.cyan_concrete", "Cyan Concrete");
+        context.Blocks.Register(BlockCategory.Building, cyanConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Cyan Concrete",
+            BlockId = "crafty.cyan_concrete"
+        });
+        context.Logger.Log("crafty.cyan_concrete created successfully");
+
+        var brownConcreteBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.brown_concrete", "Brown Concrete");
+        context.Blocks.Register(BlockCategory.Building, brownConcreteBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Brown Concrete",
+            BlockId = "crafty.brown_concrete"
+        });
+        context.Logger.Log("crafty.brown_concrete created successfully");
+    }
+
+    private void Terracotta(IModContext context)
+    {
+        var whiteTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.white_terracotta", "White Terracotta");
+        context.Blocks.Register(BlockCategory.Building, whiteTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "White Terracotta",
+            BlockId = "crafty.white_terracotta"
+        });
+        context.Logger.Log("crafty.white_terracotta created successfully");
+
+        var yellowTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.yellow_terracotta", "Yellow Terracotta");
+        context.Blocks.Register(BlockCategory.Building, yellowTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Yellow Terracotta",
+            BlockId = "crafty.yellow_terracotta"
+        });
+        context.Logger.Log("crafty.yellow_terracotta created successfully");
+
+        var redTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.red_terracotta", "Red Terracotta");
+        context.Blocks.Register(BlockCategory.Building, redTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Red Terracotta",
+            BlockId = "crafty.red_terracotta"
+        });
+        context.Logger.Log("crafty.red_terracotta created successfully");
+
+        var purpleTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.purple_terracotta", "Purple Terracotta");
+        context.Blocks.Register(BlockCategory.Building, purpleTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Purple Terracotta",
+            BlockId = "crafty.purple_terracotta"
+        });
+        context.Logger.Log("crafty.purple_terracotta created successfully");
+
+        var pinkTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.pink_terracotta", "Pink Terracotta");
+        context.Blocks.Register(BlockCategory.Building, pinkTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Pink Terracotta",
+            BlockId = "crafty.pink_terracotta"
+        });
+        context.Logger.Log("crafty.pink_terracotta created successfully");
+
+        var orangeTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.orange_terracotta", "Orange Terracotta");
+        context.Blocks.Register(BlockCategory.Building, orangeTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Orange Terracotta",
+            BlockId = "crafty.orange_terracotta"
+        });
+        context.Logger.Log("crafty.orange_terracotta created successfully");
+
+        var magentaTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.magenta_terracotta", "Magenta Terracotta");
+        context.Blocks.Register(BlockCategory.Building, magentaTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Magenta Terracotta",
+            BlockId = "crafty.magenta_terracotta"
+        });
+        context.Logger.Log("crafty.magenta_terracotta created successfully");
+
+        var limeTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.lime_terracotta", "Lime Terracotta");
+        context.Blocks.Register(BlockCategory.Building, limeTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Lime Terracotta",
+            BlockId = "crafty.lime_terracotta"
+        });
+        context.Logger.Log("crafty.lime_terracotta created successfully");
+
+        var lightGrayTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.light_gray_terracotta", "Light Gray Terracotta");
+        context.Blocks.Register(BlockCategory.Building, lightGrayTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Light Gray Terracotta",
+            BlockId = "crafty.light_gray_terracotta"
+        });
+        context.Logger.Log("crafty.light_gray_terracotta created successfully");
+
+        var lightBlueTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.light_blue_terracotta", "Light Blue Terracotta");
+        context.Blocks.Register(BlockCategory.Building, lightBlueTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Light Blue Terracotta",
+            BlockId = "crafty.light_blue_terracotta"
+        });
+        context.Logger.Log("crafty.light_blue_terracotta created successfully");
+
+        var greenTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.green_terracotta", "Green Terracotta");
+        context.Blocks.Register(BlockCategory.Building, greenTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Green Terracotta",
+            BlockId = "crafty.green_terracotta"
+        });
+        context.Logger.Log("crafty.green_terracotta created successfully");
+
+        var grayTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.gray_terracotta", "Gray Terracotta");
+        context.Blocks.Register(BlockCategory.Building, grayTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Gray Terracotta",
+            BlockId = "crafty.gray_terracotta"
+        });
+        context.Logger.Log("crafty.gray_terracotta created successfully");
+
+        var cyanTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.cyan_terracotta", "Cyan Terracotta");
+        context.Blocks.Register(BlockCategory.Building, cyanTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Cyan Terracotta",
+            BlockId = "crafty.cyan_terracotta"
+        });
+        context.Logger.Log("crafty.cyan_terracotta created successfully");
+
+        var brownTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.brown_terracotta", "Brown Terracotta");
+        context.Blocks.Register(BlockCategory.Building, brownTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Brown Terracotta",
+            BlockId = "crafty.brown_terracotta"
+        });
+        context.Logger.Log("crafty.brown_terracotta created successfully");
+
+        var blueTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.blue_terracotta", "Blue Terracotta");
+        context.Blocks.Register(BlockCategory.Building, blueTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Blue Terracotta",
+            BlockId = "crafty.blue_terracotta"
+        });
+        context.Logger.Log("crafty.blue_terracotta created successfully");
+
+        var blackTerracottaBlock = BlocksCreator.CreateOneSidedTextureBlock("crafty.black_terracotta", "Black Terracotta");
+        context.Blocks.Register(BlockCategory.Building, blackTerracottaBlock);
+        context.Items.Register(ItemCategory.Block, new Item()
+        {
+            Name = "Black Terracotta",
+            BlockId = "crafty.black_terracotta"
+        });
+        context.Logger.Log("crafty.black_terracotta created successfully");
     }
 }

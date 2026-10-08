@@ -16,6 +16,24 @@ public sealed class HotbarSystem : IGameplaySystem
     public HotbarSystem()
     {
         SystemAPI.Input.KeyDown += Input_KeyDown;
+        SystemAPI.Input.MouseWheel += Input_MouseWheel; ;
+    }
+
+    private void Input_MouseWheel(float delta)
+    {
+        if (GameStateManager.IsPaused || GameStateManager.IsInventory)
+            return;
+
+        if (delta > 0)
+            _selectedSlot--;
+        else if (delta < 0)
+            _selectedSlot++;
+        else
+            return;
+
+        _selectedSlot = (_selectedSlot + SlotCount) % SlotCount;
+
+        CraftyNative.HUD.Hotbar.SetSelectedSlot(_selectedSlot);
     }
 
     private void Input_KeyDown(Key key)

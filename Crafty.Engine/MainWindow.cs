@@ -98,8 +98,8 @@ public sealed class MainWindow : Window
 
     private AnimatedMesh _playerAnimation = null!;
     private AnimationManager _animationManager = null!;
-    private WorldObject _player = default;
-    private WorldObject _camera = default;
+    private WorldObject _player;
+    private WorldObject _camera;
     private void Window_Activated(object? sender, EventArgs e)
     {
         GameStateManager.Set(GameState.Paused);
@@ -114,7 +114,8 @@ public sealed class MainWindow : Window
         _camera = _gameWorld.Scene.CreateObject();
         var playerModel = BuildPlayer();
         _player = _gameWorld.Scene.CreateObject();
-        _hand = BuildHand();
+
+        BuildHand();
 
         _gameWorld.Scene.AddComponent(_camera, new Transform
         {
@@ -140,7 +141,7 @@ public sealed class MainWindow : Window
         _world = WorldManager.Current;
         _world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
 
-        _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _animationManager));
+        _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));
         _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
         _gameWorld.Scene.Systems.Add(new HotbarSystem());
         _gameWorld.Scene.Systems.Add(new InventorySystem());
@@ -175,20 +176,32 @@ public sealed class MainWindow : Window
     }
 
     private WorldObject _hand;
-    private WorldObject BuildHand()
+    private WorldObject _heldBlock;
+    private void BuildHand()
     {
         var mesh = MeshBuilder.BuildPlayerHandMesh();
-        var hand = _gameWorld.Scene.CreateObject();
 
-        _gameWorld.Scene.AddComponent(hand, new Transform
+        _hand = _gameWorld.Scene.CreateObject();
+        _heldBlock = _gameWorld.Scene.CreateObject();
+
+        _gameWorld.Scene.AddComponent(_hand, new Transform
         {
             LocalPosition = HandViewModelSystem.RestPosition,
             LocalRotation = HandViewModelSystem.RestRotation,
             RotateAroundParent = true
         });
 
-        _gameWorld.Scene.SetRenderable(hand, new(mesh, true));
-        return hand;
+        _gameWorld.Scene.SetRenderable(_hand, new(mesh, true));
+
+        _gameWorld.Scene.AddComponent(_heldBlock, new Transform
+        {
+            LocalPosition = new(0f, -0.2f, -0.2f),
+            LocalRotation = new(-1.1f, 0f, 0f),
+            Scale = new(0.5f),
+            RotateAroundParent = true
+        });
+
+        _gameWorld.Scene.SetParent(_heldBlock, _hand);
     }
 
     private static double _elapsed;

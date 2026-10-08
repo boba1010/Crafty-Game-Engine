@@ -15,6 +15,7 @@ public sealed class InputManager : IDisposable
     public event Action<Key>? KeyDown;
     public event Action<Key>? KeyUp;
     public event Action<Vector2>? MouseMove;
+    public event Action<float>? MouseWheel;
     public event Action<Vector2, MouseButton>? Click;
     private readonly IInputContext _input;
     private readonly IKeyboard _keyboard;
@@ -32,6 +33,12 @@ public sealed class InputManager : IDisposable
         _keyboard.KeyUp += Keyboard_KeyUp;
         _mouse.MouseMove += Mouse_MouseMove;
         _mouse.Click += Mouse_Click;
+        _mouse.Scroll += _mouse_Scroll;
+    }
+
+    private void _mouse_Scroll(IMouse mouse, ScrollWheel scroll)
+    {
+        MouseWheel?.Invoke(scroll.Y);
     }
 
     private void Mouse_Click(IMouse mouse, Silk.NET.Input.MouseButton btn, Vector2 position)
