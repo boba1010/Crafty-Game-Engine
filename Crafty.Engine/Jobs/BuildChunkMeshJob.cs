@@ -24,9 +24,9 @@ public readonly struct BuildChunkMeshJob(World world, IChunk chunk) : IJob
                 {
                     var coordinate = new SectionCoordinate(_chunk.X, _chunk.Z, sectionX, sectionY, sectionZ);
 
-                    var sectionMesh = MeshBuilder.BuildSectionMesh(_world, sectionX, sectionY, sectionZ, _chunk.X, _chunk.Z);
+                    var meshes = MeshBuilder.BuildSectionMesh(_world, sectionX, sectionY, sectionZ, _chunk.X, _chunk.Z);
 
-                    WorldMeshManager.TryAdd(new WorldMeshSection(coordinate, sectionMesh));
+                    WorldMeshManager.TryAdd(new WorldMeshSection(coordinate, meshes));
                 }
             }
         }

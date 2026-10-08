@@ -40,7 +40,7 @@ internal class ChunkGenerator : IChunkGenerator
                         _ => _blockIds[BlockCategory.Nature] + 0
                     };
 
-                    chunk.Blocks.Add(new(blockId, (byte)x, (short)y, (byte)z));
+                    chunk.Blocks.Add(new(blockId, 0));
                 }
             }
         }

@@ -52,7 +52,7 @@ public sealed class World
         return chunk.GetBlock(localX, y, localZ);
     }
 
-    public void SetBlock(int x, int y, int z, uint id)
+    public void SetBlock(int x, int y, int z, uint id, byte state)
     {
         int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
         int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
@@ -76,7 +76,7 @@ public sealed class World
 
         uint oldId = chunk.GetBlock(localX, y, localZ).Id;
 
-        chunk.SetBlock(new(id, (byte)localX, (short)y, (byte)localZ));
+        chunk.SetBlock((byte)localX, (short)y, (byte)localZ, new(id, state));
 
         chunk.IsModified = true;
 

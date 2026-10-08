@@ -1,9 +1,7 @@
 ﻿namespace Crafty.SDK.World;
 
-public readonly struct BlockPlacement(uint id, byte x, short y, byte z)
+public readonly struct BlockPlacement(uint id, byte state)
 {
     public uint Id { get; } = id;
-    public byte X { get; } = x;
-    public short Y { get; } = y;
-    public byte Z { get; } = z;
+    public byte State { get; } = state;
 }

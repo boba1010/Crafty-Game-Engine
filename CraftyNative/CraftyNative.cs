@@ -13,26 +13,39 @@ using Vulcan.Graphics.Descriptions;
 
 namespace CraftyNative;
 
-internal unsafe static class CraftyNative
+public unsafe static class CraftyNative
 {
     public static IWindow Window { get; private set; } = null!;
     public static IGraphicsDevice Device { get; private set; } = null!;
 
     private static readonly Dictionary<Mesh, GPUMesh> _gpuMeshes = [];
 
+    // Reused every frame so the translucent pass doesn't allocate
+    private static readonly List<(float Dist, int Index)> _translucentOrder = [];
+
     private static ICommandBuffer _commandBuffer = null!;
-    private static IPipeline _pipeline = null!;
     private static ISwapchain _swapchain = null!;
     private static ICommandQueue _queue = null!;
-    private static IShader _vertexShader = null!;
-    private static IShader _fragmentShader = null!;
     private static IVertexLayout _vertexLayout = null!;
     private static IRasterizerState _rasterizerState = null!;
-    private static IDepthStencilState _depthStencilState = null!;
-    private static IBlendState _blendState = null!;
     private static IBuffer _constantBuffer = null!;
     private static ITexture _depthTexture = null!;
     private static ISampler _sampler = null!;
+
+    private static IShader _vertexShader = null!;
+    private static IShader _fragmentShader = null!;
+    private static IShader _translucentFragmentShader = null!;
+
+    // Opaque + alpha-tested (cutout) pipeline: no blending, depth writes on
+    private static IPipeline _pipeline = null!;
+    private static IDepthStencilState _depthStencilState = null!;
+    private static IBlendState _blendState = null!;
+
+    // Translucent pipeline (glass, ice): blending on, depth writes off
+    private static IPipeline _translucentPipeline = null!;
+    private static IDepthStencilState _translucentDepthState = null!;
+    private static IRasterizerState _translucentRasterizerState = null!;
+    private static IBlendState _alphaBlendState = null!;
 
     private static GPUMesh GetOrCreateMesh(Mesh mesh)
     {
@@ -65,6 +78,20 @@ internal unsafe static class CraftyNative
         _gpuMeshes.Add(mesh, gpuMesh);
 
         return gpuMesh;
+    }
+
+    /// <summary>
+    /// Frees the GPU buffers of a mesh that is being replaced or unloaded
+    /// (e.g. a section that was rebuilt). Never call this for a mesh that is
+    /// still being drawn this frame.
+    /// </summary>
+    public static void ReleaseMesh(Mesh? mesh)
+    {
+        if (mesh is null)
+            return;
+
+        if (_gpuMeshes.Remove(mesh, out var gpuMesh))
+            gpuMesh.Dispose();
     }
 
     public static Texture CreateTexture(ImageData image)
@@ -104,7 +131,7 @@ internal unsafe static class CraftyNative
         Window = window;
         Device = Vulcan.Vulcan.CreateDevice(Window);
         Device.Initialize();
-        
+
         CreateSwapchain(false);
 
         var shaderSource = """
@@ -136,15 +163,27 @@ internal unsafe static class CraftyNative
         Texture2D Texture : register(t0);
         SamplerState Sampler : register(s0);
 
+        // Opaque + cutout: throw away mostly-transparent pixels
         float4 PSMain(VSOutput input) : SV_Target
         {
-            return Texture.Sample(Sampler, input.UV);
+            float4 color = Texture.Sample(Sampler, input.UV);
+            clip(color.a - 0.5f);
+            return color;
+        }
+
+        // Translucent (glass, ice): only skip fully transparent pixels,
+        // so the faint glass tint survives and gets blended
+        float4 PSMainTranslucent(VSOutput input) : SV_Target
+        {
+            float4 color = Texture.Sample(Sampler, input.UV);
+            clip(color.a - 0.004f);
+            return color;
         }
         """;
 
         var vertexShaderCode = Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
-
         var fragmentShaderCode = Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
+        var translucentFragmentShaderCode = Shaders.CompileShader(shaderSource, "PSMainTranslucent", "ps_5_0");
 
         _vertexShader = Device.CreateShader(new()
         {
@@ -158,6 +197,13 @@ internal unsafe static class CraftyNative
             Code = fragmentShaderCode,
             Stage = ShaderStage.Fragment,
             EntryPoint = "PSMain"
+        });
+
+        _translucentFragmentShader = Device.CreateShader(new()
+        {
+            Code = translucentFragmentShaderCode,
+            Stage = ShaderStage.Fragment,
+            EntryPoint = "PSMainTranslucent"
         });
 
         _vertexLayout = Device.CreateVertexLayout(new()
@@ -190,6 +236,7 @@ internal unsafe static class CraftyNative
             DepthClipEnable = true
         });
 
+        // ---- opaque / cutout ----
         _depthStencilState = Device.CreateDepthStencilState(new()
         {
             DepthTestEnable = true,
@@ -211,6 +258,44 @@ internal unsafe static class CraftyNative
             Rasterizer = _rasterizerState,
             DepthStencil = _depthStencilState,
             Blend = _blendState
+        });
+
+        // ---- translucent ----
+        _alphaBlendState = Device.CreateBlendState(new()
+        {
+            Enable = true,
+            SourceColor = BlendFactor.SourceAlpha,
+            DestinationColor = BlendFactor.InverseSourceAlpha,
+            ColorOperation = BlendOperation.Add,
+            SourceAlpha = BlendFactor.One,
+            DestinationAlpha = BlendFactor.InverseSourceAlpha,
+            AlphaOperation = BlendOperation.Add
+        });
+
+        _translucentRasterizerState = Device.CreateRasterizerState(new()
+        {
+            CullMode = CullMode.Back,
+            FrontFace = FrontFace.CounterClockwise,
+            FillMode = FillMode.Solid,
+            DepthClipEnable = true,
+        });
+
+        _translucentDepthState = Device.CreateDepthStencilState(new()
+        {
+            DepthTestEnable = true,
+            DepthWriteEnable = false,   // glass must not hide what's drawn after it
+            DepthCompare = CompareOperation.Less
+        });
+
+        _translucentPipeline = Device.CreatePipeline(new()
+        {
+            VertexShader = _vertexShader,
+            FragmentShader = _translucentFragmentShader,
+            VertexLayout = _vertexLayout,
+            PrimitiveTopology = PrimitiveTopology.TriangleList,
+            Rasterizer = _translucentRasterizerState,
+            DepthStencil = _translucentDepthState,
+            Blend = _alphaBlendState
         });
 
         _constantBuffer = Device.CreateBuffer(new()
@@ -314,8 +399,6 @@ internal unsafe static class CraftyNative
         _commandBuffer.ClearColor(1f, 1f, 1f, 1f);
         _commandBuffer.ClearDepth(1f);
 
-        _commandBuffer.SetPipeline(_pipeline);
-
         ref var cameraTransform = ref scene.GetComponent<Transform>(cameraObject);
         ref var camera = ref scene.GetComponent<Camera>(cameraObject);
 
@@ -328,6 +411,10 @@ internal unsafe static class CraftyNative
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(camera.FieldOfView, size.X / (float)size.Y, camera.NearPlane, camera.FarPlane);
 
         var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, out var visibleSections);
+
+        // ---- Pass 1: opaque + cutout (world sections, then entities/items) ----
+        _commandBuffer.SetPipeline(_pipeline);
+
         for (int i = 0; i < visibleSectionsCount; i++)
         {
             var section = visibleSections[i];
@@ -337,7 +424,7 @@ internal unsafe static class CraftyNative
                 continue;
 
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
-            DrawMesh(mesh, model * view * projection, $"{section.Coordinate.ChunkX}_{section.Coordinate.ChunkZ}_{section.Coordinate.SectionX}_{section.Coordinate.SectionY}_{section.Coordinate.SectionZ}");
+            DrawMesh(mesh, model * view * projection);
         }
 
         foreach (var (objectId, renderable) in scene.Renderables)
@@ -352,7 +439,36 @@ internal unsafe static class CraftyNative
                 Matrix4x4.CreateTranslation(transform.Position);
 
             if (renderable.ShouldRender)
-                DrawMesh(renderable.Mesh, model * view * projection, objectId.ToString());
+                DrawMesh(renderable.Mesh, model * view * projection);
+        }
+
+        // ---- Pass 2: translucent sections (glass, ice), far to near ----
+        _translucentOrder.Clear();
+
+        for (int i = 0; i < visibleSectionsCount; i++)
+        {
+            var section = visibleSections[i]!;
+            var translucentMesh = section.TranslucentMesh;
+
+            if (translucentMesh is null || translucentMesh.Vertices.Count <= 0 || translucentMesh.Indices.Count <= 0)
+                continue;
+
+            var distance = Vector3.DistanceSquared(cameraTransform.Position, section.Coordinate.WorldPosition);
+            _translucentOrder.Add((distance, i));
+        }
+
+        if (_translucentOrder.Count > 0)
+        {
+            _translucentOrder.Sort((a, b) => b.Dist.CompareTo(a.Dist));
+
+            _commandBuffer.SetPipeline(_translucentPipeline);
+
+            foreach (var (_, index) in _translucentOrder)
+            {
+                var section = visibleSections[index]!;
+                var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
+                DrawMesh(section.TranslucentMesh, model * view * projection);
+            }
         }
 
         Vector2 vector2Size = new(size.X, size.Y);
@@ -366,7 +482,7 @@ internal unsafe static class CraftyNative
         _swapchain.Present();
     }
 
-    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, string materialId)
+    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp)
     {
         var gpuMesh = GetOrCreateMesh(mesh);
         if (mesh.IsDirty)
@@ -393,9 +509,8 @@ internal unsafe static class CraftyNative
             return;
         }
 
-        var key = materialId;
-
-        var material = NativeMaterialsManager.Get(key, texture.Value);
+        // One material per atlas, shared by every mesh that uses it
+        var material = NativeMaterialsManager.Get(texture.Value);
 
         _commandBuffer.SetTexture(material.Atlas.Resource);
         _commandBuffer.DrawIndexed((uint)mesh.Indices.Count, 1, 0);
@@ -407,11 +522,11 @@ internal unsafe static class CraftyNative
         gpuMesh.VertexBuffer.Upload(data);
     }
 
+    // materialId is unused now; remove it from HudRenderer when convenient
     internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp, string materialId)
     {
-        // The HUD pipeline is bound when we get here; switch back to the textured 3D one
         _commandBuffer.SetPipeline(_pipeline);
-        DrawMesh(mesh, mvp, materialId);
+        DrawMesh(mesh, mvp);
     }
 
     public static void Dispose()
@@ -420,15 +535,27 @@ internal unsafe static class CraftyNative
         UIRenderer.Dispose();
         UITextRenderer.Dispose();
 
+        NativeMaterialsManager.Clear();
+
+        foreach (var gpuMesh in _gpuMeshes.Values)
+            gpuMesh.Dispose();
+        _gpuMeshes.Clear();
+
+        _translucentPipeline?.Dispose();
+        _translucentDepthState?.Dispose();
+        _alphaBlendState?.Dispose();
+
+        _pipeline?.Dispose();
+        _depthStencilState?.Dispose();
+        _blendState?.Dispose();
+
         _depthTexture?.Dispose();
         _constantBuffer?.Dispose();
         _vertexShader?.Dispose();
         _fragmentShader?.Dispose();
+        _translucentFragmentShader?.Dispose();
         _vertexLayout?.Dispose();
         _rasterizerState?.Dispose();
-        _depthStencilState?.Dispose();
-        _blendState?.Dispose();
-        _pipeline?.Dispose();
         _commandBuffer?.Dispose();
         _queue?.Dispose();
         _swapchain?.Dispose();

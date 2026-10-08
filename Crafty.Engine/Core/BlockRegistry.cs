@@ -17,6 +17,8 @@ public sealed class BlockRegistry : IBlockRegistry
         [BlockCategory.Technical] = 50_000
     };
 
+    public Block[] All => [.. _blocks.Values];
+
     public Block Get(uint id)
     {
         if (!_blocks.TryGetValue(id, out var item))

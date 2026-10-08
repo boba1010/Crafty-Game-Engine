@@ -29,9 +29,9 @@ public sealed class Chunk : IChunk
     //    throw new NotImplementedException();
     //}
 
-    public void SetBlock(BlockPlacement block)
+    public void SetBlock(int x, int y, int z, BlockPlacement block)
     {
-        int index = block.X * (Size * 416) + block.Z * 416 + block.Y;
+        int index = x * (Size * 416) + z * 416 + y;
         Blocks[index] = block;
     }
 }

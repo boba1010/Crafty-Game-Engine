@@ -1,19 +1,53 @@
-﻿namespace Crafty.SDK.Client.Blocks;
+﻿using System.Numerics;
+
+namespace Crafty.SDK.Client.Blocks;
 
 public sealed class BlockModel
 {
-    public static BlockModel Cube => new()
+    public static BlockModel Cube = new()
     {
-        Faces = 
+        Elements = 
         [
-            new(BlockFaceDirection.Top, "crafty.missing"),
-            new(BlockFaceDirection.Bottom, "crafty.missing"),
-            new(BlockFaceDirection.North, "crafty.missing"),
-            new(BlockFaceDirection.South, "crafty.missing"),
-            new(BlockFaceDirection.East, "crafty.missing"),
-            new(BlockFaceDirection.West, "crafty.missing"),
-        ]
+            new()
+                {
+                    Min = Vector3.Zero,
+                    Max = Vector3.One,
+                    Faces =
+                    [
+                        new()
+                        {
+                            Texture = "crafty.missing",
+                            Direction = BlockFaceDirection.West,
+                        },
+                        new()
+                        {
+                            Texture = "crafty.missing",
+                            Direction = BlockFaceDirection.East,
+                        },
+                        new()
+                        {
+                            Texture = "crafty.missing",
+                            Direction = BlockFaceDirection.Bottom,
+                        },
+                        new()
+                        {
+                            Texture = "crafty.missing",
+                            Direction = BlockFaceDirection.Top,
+                        },
+                        new()
+                        {
+                            Texture = "crafty.missing",
+                            Direction = BlockFaceDirection.South,
+                        },
+                        new()
+                        {
+                            Texture = "crafty.missing",
+                            Direction = BlockFaceDirection.North,
+                        },
+                    ]
+                }
+        ],
     };
 
-    public IReadOnlyList<BlockFace> Faces { get; init; } = [];
+    public IReadOnlyList<BlockElement> Elements { get; init; } = [];
 }

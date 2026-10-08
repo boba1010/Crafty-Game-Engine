@@ -4,8 +4,8 @@ public class Block
 {
     public string Name { get; set; } = null!;
     public string Id { get; set; } = null!;
-    public BlockProperties Properties { get; init; } = new();
-    public BlockModel Model { get; init; } = BlockModel.Cube;
+    public BlockProperties Properties { get; set; } = new();
+    public BlockModel Model { get; set; } = BlockModel.Cube;
     public BlockStateDefinition? States { get; init; }
     public CollisionShape Collision { get; init; }
     public SelectionShape Selection { get; init; }

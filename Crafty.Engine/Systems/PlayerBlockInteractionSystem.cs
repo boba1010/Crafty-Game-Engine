@@ -1,18 +1,23 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.Engine.Components;
+using Crafty.Engine.Core;
+using Crafty.SDK.Client.Blocks;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Physics;
 using System.Numerics;
+
 namespace Crafty.Engine.Systems;
 
 public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
 {
     public float Reach { get; set; } = 6f;
+
     public float BreakCooldown { get; set; } = 0.15f;
     private float _breakCooldown;
+
     public float PlaceCooldown { get; set; } = 0.10f;
     private float _placeCooldown;
 
@@ -28,6 +33,7 @@ public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
         ref var cameraTransform = ref scene.GetComponent<Transform>(cameraObject);
 
         var cameraPosition = cameraTransform.Position;
+
         float pitch = cameraTransform.Rotation.X;
         float yaw = cameraTransform.Rotation.Y;
 
@@ -39,7 +45,8 @@ public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
         if (SystemAPI.Input.IsMouseButtonDown(MouseButton.Right))
         {
             ref var hotbar = ref scene.GetComponent<Hotbar>(playerObject);
-            HandleBlockPlace((float)deltaTime, cameraPosition, direction, hotbar.Slots[hotbar.SelectedSlot]);
+
+            HandleBlockPlace((float)deltaTime, cameraPosition, direction, yaw, hotbar.Slots[hotbar.SelectedSlot]);
         }
     }
 
@@ -53,11 +60,12 @@ public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
         if (!VoxelRaycast.Raycast(cameraPosition, direction, Reach, IsSolid, out var hit))
             return;
 
-        world.SetBlock(hit.X, hit.Y, hit.Z, 0);
+        world.SetBlock(hit.X, hit.Y, hit.Z, 0, 0);
+
         _breakCooldown = BreakCooldown;
     }
 
-    private void HandleBlockPlace(float deltaTime, Vector3 cameraPosition, Vector3 direction, InventorySlot slot)
+    private void HandleBlockPlace(float deltaTime, Vector3 cameraPosition, Vector3 direction, float yaw, InventorySlot slot)
     {
         _placeCooldown -= deltaTime;
 
@@ -71,14 +79,54 @@ public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
         var y = hit.Y + (int)hit.Normal.Y;
         var z = hit.Z + (int)hit.Normal.Z;
 
-        if (slot.BlockId.HasValue)
-            world.SetBlock(x, y, z, slot.BlockId.Value);
+        if (!slot.BlockId.HasValue)
+            return;
+
+        uint blockId = slot.BlockId.Value;
+        var block = GameAPIs.BlockRegistry.Get(blockId);
+
+        byte state = GetState(block, yaw);
+
+        world.SetBlock(x, y, z, blockId, state);
+
         _placeCooldown = PlaceCooldown;
+    }
+
+    private static byte GetState(Block block, float yaw)
+    {
+        if (block.States?.Properties.TryGetValue("facing", out var facings) != true)
+            return 0;
+
+        string facing = GetFacing(yaw);
+
+        for (byte i = 0; i < facings?.Count; i++)
+        {
+            if (facings[i] == facing)
+                return i;
+        }
+
+        return 0;
+    }
+
+    private static string GetFacing(float yaw)
+    {
+        float angle = (yaw + MathF.PI) % (MathF.PI * 2f);
+
+        if (angle < 0)
+            angle += MathF.PI * 2f;
+
+        return angle switch
+        {
+            < MathF.PI * 0.25f => "north",
+            < MathF.PI * 0.75f => "west",
+            < MathF.PI * 1.25f => "south",
+            < MathF.PI * 1.75f => "east",
+            _ => "north"
+        };
     }
 
     private bool IsSolid(int x, int y, int z)
     {
-        var block = world.GetBlock(x, y, z);
-        return block.Id != 0;
+        return world.GetBlock(x, y, z).Id != 0;
     }
 }

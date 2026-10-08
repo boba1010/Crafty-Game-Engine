@@ -52,7 +52,10 @@ public static class WorldIOManager
         writer.Write(chunk.IsModified);
 
         foreach (var block in chunk.Blocks)
+        {
             writer.Write(block.Id);
+            writer.Write(block.State);
+        }
     }
 
     public static Chunk LoadChunk(int x, int z)
@@ -77,11 +80,9 @@ public static class WorldIOManager
         {
             var id = reader.ReadUInt32();
 
-            int blockX = i / (Chunk.Size * 416);
-            int blockZ = (i / 416) % Chunk.Size;
-            int y = i % 416;
+            var state = reader.ReadByte();
 
-            blocks.Add(new(id, (byte)blockX, (short)y, (byte)blockZ));
+            blocks.Add(new(id, state));
         }
 
         chunk.Blocks = blocks;
