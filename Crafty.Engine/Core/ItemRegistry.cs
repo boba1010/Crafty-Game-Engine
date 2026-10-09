@@ -34,6 +34,13 @@ public sealed class ItemRegistry : IItemRegistry
 
     public uint[] GetAllIds()
     {
-        return [.. _items.Keys];
+        List<uint> ids = [];
+
+        foreach (var item in _items)
+        {
+            if (!item.Value.HiddenItem)
+                ids.Add(item.Key);
+        }
+        return [.. ids];
     }
 }

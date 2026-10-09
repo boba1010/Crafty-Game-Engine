@@ -329,6 +329,7 @@ public sealed class MainMod : IMod
     {
         var air = BlocksCreator.CreateAirBlock();
         context.Blocks.Register(BlockCategory.Nature, air);
+        context.Items.Register(ItemCategory.Block, new Item() { HiddenItem = true });
         context.Logger.Log("crafty.air created successfully");
 
         var grassBlock = BlocksCreator.CreateThreeSidedTextureBlock("crafty.grass", "Grass Block");

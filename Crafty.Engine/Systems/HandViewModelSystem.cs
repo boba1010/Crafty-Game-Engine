@@ -28,6 +28,7 @@ internal sealed class HandViewModelSystem(WorldObject hand, WorldObject heldBloc
     private bool _swapped;
 
     private int _lastSelectedSlot = -1;
+    private InventorySlot _lastSlot;
     private bool _wasPressed;
 
     public void Update(ref Scene scene, double deltaTime)
@@ -41,15 +42,21 @@ internal sealed class HandViewModelSystem(WorldObject hand, WorldObject heldBloc
         int selectedSlot = hotbar.SelectedSlot;
         var slot = hotbar.Slots[selectedSlot];
 
+        if (!slot.Equals(_lastSlot))
+        {
+            _lastSlot = slot;
+            _swap = 0f;
+            _swapped = false;
+        }
+
         if (selectedSlot != _lastSelectedSlot)
         {
             bool hadPreviousBlock = _lastSelectedSlot >= 0 && hotbar.Slots[_lastSelectedSlot].BlockId.HasValue;
-
             bool hasCurrentBlock = slot.BlockId.HasValue;
 
             _lastSelectedSlot = selectedSlot;
-
-            if (!uiActive && (hadPreviousBlock || hasCurrentBlock))
+            
+            if (hadPreviousBlock || hasCurrentBlock)
             {
                 _swap = 0f;
                 _swapped = false;
