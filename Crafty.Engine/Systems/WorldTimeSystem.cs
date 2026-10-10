@@ -1,5 +1,4 @@
-﻿using CraftyNative;
-using CraftyNative.ECS;
+﻿using CraftyNative.ECS;
 using CraftyNative.Environment;
 using CraftyNative.Scenes;
 using System.Numerics;
@@ -8,8 +7,8 @@ namespace Crafty.Engine.Systems;
 
 public sealed class WorldTimeSystem : IGameplaySystem
 {
-    //public float DayLengthSeconds { get; set; } = 1800f;
-    public float DayLengthSeconds { get; set; } = 60f;
+    public float DayLengthSeconds { get; set; } = 1800f;
+    //public float DayLengthSeconds { get; set; } = 60f;
     public float TimeOfDay { get; private set; } = 0.25f;
     public static float Daylight => Math.Clamp(SunRenderer.Direction.Y, 0f, 1f);
     public float Moonlight => Math.Clamp(-SunRenderer.Direction.Y, 0f, 1f);
