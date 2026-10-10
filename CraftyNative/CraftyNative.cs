@@ -139,12 +139,14 @@ public unsafe static class CraftyNative
         {
             float3 Position : POSITION;
             float2 UV : TEXCOORD0;
+            float Light : TEXCOORD1;
         };
 
         struct VSOutput
         {
             float4 Position : SV_Position;
             float2 UV : TEXCOORD0;
+            float Light : TEXCOORD1;
         };
 
         cbuffer Transform : register(b0)
@@ -157,26 +159,26 @@ public unsafe static class CraftyNative
             VSOutput output;
             output.Position = mul(float4(input.Position, 1.0), MVP);
             output.UV = input.UV;
+            output.Light = input.Light;
             return output;
         }
 
         Texture2D Texture : register(t0);
         SamplerState Sampler : register(s0);
 
-        // Opaque + cutout: throw away mostly-transparent pixels
         float4 PSMain(VSOutput input) : SV_Target
         {
             float4 color = Texture.Sample(Sampler, input.UV);
             clip(color.a - 0.5f);
+            color.rgb *= saturate(input.Light);
             return color;
         }
 
-        // Translucent (glass, ice): only skip fully transparent pixels,
-        // so the faint glass tint survives and gets blended
         float4 PSMainTranslucent(VSOutput input) : SV_Target
         {
             float4 color = Texture.Sample(Sampler, input.UV);
             clip(color.a - 0.004f);
+            color.rgb *= saturate(input.Light);
             return color;
         }
         """;
@@ -224,6 +226,13 @@ public unsafe static class CraftyNative
                     Location = 0,
                     Format = TextureFormat.R32G32Float,
                     Offset = 12
+                },
+                new()
+                {
+                    Semantic = "TEXCOORD",
+                    Location = 1,
+                    Format = TextureFormat.R32Float,
+                    Offset = 20
                 }
             }
         });

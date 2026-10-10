@@ -1,4 +1,5 @@
-﻿using Crafty.Engine.Components;
+﻿using Crafty.ChunkGeneration.World;
+using Crafty.Engine.Components;
 using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
 using Crafty.SDK.Client.Blocks;
@@ -8,9 +9,9 @@ using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Physics;
 using System.Numerics;
 
-namespace Crafty.Engine.Systems;
+namespace Crafty.Engine.Systems.Physics;
 
-public sealed class CollisionSystem : IGameplaySystem
+public sealed class CollisionSystem(World world) : IGameplaySystem
 {
     public void Update(ref Scene scene, double deltaTime)
     {
@@ -83,7 +84,7 @@ public sealed class CollisionSystem : IGameplaySystem
 
     private IEnumerable<BoundingBox> GetCollisionBoxes(int x, int y, int z)
     {
-        var blockId = ChunkHelper.GetBlockIdByGlobalPosition(x, y, z);
+        var blockId = ChunkHelper.GetBlockIdByGlobalPosition(world, x, y, z);
         if (blockId == 0)
             yield break;
 

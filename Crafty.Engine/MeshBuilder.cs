@@ -103,6 +103,46 @@ public static class MeshBuilder
     }
 
     // ------------------------------------------------------------------
+    // Lighting
+    // ------------------------------------------------------------------
+
+    private static float GetBrightness(World world, int x, int y, int z)
+    {
+        const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
+
+        if (y < 0)
+            return 0f;
+
+        if (y >= worldHeight)
+            return 1f;
+
+        int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
+        int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
+
+        if (localX < 0)
+        {
+            chunkX--;
+            localX += Chunk.Size;
+        }
+
+        if (localZ < 0)
+        {
+            chunkZ--;
+            localZ += Chunk.Size;
+        }
+
+        var chunk = world.GetChunk(chunkX, chunkZ);
+
+        if (chunk is null)
+            return 0f;
+
+        byte skyLight = chunk.GetSkyLight(localX, y, localZ);
+        byte blockLight = chunk.GetBlockLight(localX, y, localZ);
+
+        return Math.Max(skyLight, blockLight) / 15f;
+    }
+
+    // ------------------------------------------------------------------
     // Section meshing
     // ------------------------------------------------------------------
 
@@ -144,17 +184,17 @@ public static class MeshBuilder
                     foreach (var element in model.Elements)
                     {
                         if (ShouldDrawFace(block.Id, world.GetBlock(x - 1, y, z).Id, blockDef.Properties.Transparent))
-                            AddElementFace(ref target, localX, localY, localZ, Face.Left, element, block.State, atlas);
+                            AddElementFace(ref target, localX, localY, localZ, Face.Left, element, block.State, atlas, GetBrightness(world, x - 1, y, z));
                         if (ShouldDrawFace(block.Id, world.GetBlock(x + 1, y, z).Id, blockDef.Properties.Transparent))
-                            AddElementFace(ref target, localX, localY, localZ, Face.Right, element, block.State, atlas);
+                            AddElementFace(ref target, localX, localY, localZ, Face.Right, element, block.State, atlas, GetBrightness(world, x + 1, y, z));
                         if (y == 0 || ShouldDrawFace(block.Id, world.GetBlock(x, y - 1, z).Id, blockDef.Properties.Transparent))
-                            AddElementFace(ref target, localX, localY, localZ, Face.Bottom, element, block.State, atlas);
+                            AddElementFace(ref target, localX, localY, localZ, Face.Bottom, element, block.State, atlas, GetBrightness(world, x, y - 1, z));
                         if (ShouldDrawFace(block.Id, world.GetBlock(x, y + 1, z).Id, blockDef.Properties.Transparent))
-                            AddElementFace(ref target, localX, localY, localZ, Face.Top, element, block.State, atlas);
+                            AddElementFace(ref target, localX, localY, localZ, Face.Top, element, block.State, atlas, GetBrightness(world, x, y + 1, z));
                         if (ShouldDrawFace(block.Id, world.GetBlock(x, y, z - 1).Id, blockDef.Properties.Transparent))
-                            AddElementFace(ref target, localX, localY, localZ, Face.Front, element, block.State, atlas);
+                            AddElementFace(ref target, localX, localY, localZ, Face.Front, element, block.State, atlas, GetBrightness(world, x, y, z - 1));
                         if (ShouldDrawFace(block.Id, world.GetBlock(x, y, z + 1).Id, blockDef.Properties.Transparent))
-                            AddElementFace(ref target, localX, localY, localZ, Face.Back, element, block.State, atlas);
+                            AddElementFace(ref target, localX, localY, localZ, Face.Back, element, block.State, atlas, GetBrightness(world, x, y, z + 1));
                     }
                 }
             }
@@ -166,12 +206,12 @@ public static class MeshBuilder
     private static Mesh Wrap(MeshData data, ChunkTextureAtlas atlas)
     {
         if (data.Vertices.Count == 0)
-            return new Mesh([], [], vertexStride: 20);
+            return new Mesh([], [], vertexStride: 24);
 
-        return new Mesh(data.Vertices, data.Indices, atlas.Image, vertexStride: 20);
+        return new Mesh(data.Vertices, data.Indices, atlas.Image, vertexStride: 24);
     }
 
-    private static void AddElementFace(ref MeshData mesh, int x, int y, int z, Face face, BlockElement element, byte state, ChunkTextureAtlas atlas) 
+    private static void AddElementFace(ref MeshData mesh, int x, int y, int z, Face face, BlockElement element, byte state, ChunkTextureAtlas atlas, float light = 1f)
     {
         var direction = ToBlockFaceDirection(face);
         var modelFace = GetModelFace(element, direction);
@@ -288,12 +328,12 @@ public static class MeshBuilder
         v2 += offset;
         v3 += offset;
 
-        var i = (uint)(mesh.Vertices.Count / 5);
+        var i = (uint)(mesh.Vertices.Count / 6);
 
-        AddVertex(ref mesh, v0.X, v0.Y, v0.Z, U(u0, region), V(v_0, region));
-        AddVertex(ref mesh, v1.X, v1.Y, v1.Z, U(u1, region), V(v_1, region));
-        AddVertex(ref mesh, v2.X, v2.Y, v2.Z, U(u2, region), V(v_2, region));
-        AddVertex(ref mesh, v3.X, v3.Y, v3.Z, U(u3, region), V(v_3, region));
+        AddVertex(ref mesh, v0.X, v0.Y, v0.Z, U(u0, region), V(v_0, region), light);
+        AddVertex(ref mesh, v1.X, v1.Y, v1.Z, U(u1, region), V(v_1, region), light);
+        AddVertex(ref mesh, v2.X, v2.Y, v2.Z, U(u2, region), V(v_2, region), light);
+        AddVertex(ref mesh, v3.X, v3.Y, v3.Z, U(u3, region), V(v_3, region), light);
 
         mesh.Indices.AddRange(face switch
         {
@@ -336,7 +376,7 @@ public static class MeshBuilder
         var model = GameAPIs.BlockRegistry.Get(blockId).Model;
 
         if (model.Elements.Count == 0)
-            return new Mesh([], [], vertexStride: 20);
+            return new Mesh([], [], vertexStride: 24);
 
         var atlas = GlobalAtlas;
         var mesh = new MeshData();
@@ -344,7 +384,7 @@ public static class MeshBuilder
         foreach (var element in model.Elements)
             AddElement(ref mesh, 0, 0, 0, element, 0, atlas);
 
-        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 24);
     }
 
     private static void AddElement(ref MeshData mesh, int x, int y, int z, BlockElement element, byte state, ChunkTextureAtlas atlas)
@@ -356,7 +396,7 @@ public static class MeshBuilder
     public static Mesh BuildItemMesh(Item item)
     {
         if (item.Texture is not { } texture)
-            return new Mesh([], [], vertexStride: 20);
+            return new Mesh([], [], vertexStride: 24);
 
         var atlas = ChunkTextureAtlasBuilder.Build(
             new HashSet<string> { texture.Path },
@@ -379,7 +419,7 @@ public static class MeshBuilder
              0.5f, 0.5f, 0f,
              0.5f, -0.5f, 0f);
 
-        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 20);
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 24);
     }
 
     private static void AddItemFace(
@@ -389,13 +429,13 @@ public static class MeshBuilder
         float x2, float y2, float z2,
         float x3, float y3, float z3)
     {
-        var i = (uint)(mesh.Vertices.Count / 5);
+        var i = (uint)(mesh.Vertices.Count / 6);
 
         mesh.Vertices.AddRange([
-            x0, y0, z0, 0f, 1f,
-            x1, y1, z1, 1f, 1f,
-            x2, y2, z2, 1f, 0f,
-            x3, y3, z3, 0f, 0f
+            x0, y0, z0, 0f, 1f, 1f,
+            x1, y1, z1, 1f, 1f, 1f,
+            x2, y2, z2, 1f, 0f, 1f,
+            x3, y3, z3, 0f, 0f, 1f
         ]);
 
         mesh.Indices.AddRange([
@@ -418,7 +458,7 @@ public static class MeshBuilder
 
         var pixels = new byte[64 * 64];
 
-        return new(vertices, indices, new(pixels, 64, 64), 20);
+        return new(vertices, indices, new(pixels, 64, 64), 24);
     }
 
     public static Mesh BuildPlayerHandMesh()
@@ -431,12 +471,12 @@ public static class MeshBuilder
 
         var pixels = new byte[64 * 64];
 
-        return new(vertices, indices, new(pixels, 64, 64), 20);
+        return new(vertices, indices, new(pixels, 64, 64), 24);
     }
 
     private static void AddBox(List<float> vertices, List<uint> indices, Vector3 min, Vector3 max)
     {
-        uint start = (uint)(vertices.Count / 5);
+        uint start = (uint)(vertices.Count / 6);
 
         AddFace(
             vertices,
@@ -499,14 +539,14 @@ public static class MeshBuilder
         float x3, float y3, float z3)
     {
         vertices.AddRange([
-            x0, y0, z0, 0f, 1f,
-            x1, y1, z1, 1f, 1f,
-            x2, y2, z2, 1f, 0f,
-            x3, y3, z3, 0f, 0f
+            x0, y0, z0, 0f, 1f, 1f,
+            x1, y1, z1, 1f, 1f, 1f,
+            x2, y2, z2, 1f, 0f, 1f,
+            x3, y3, z3, 0f, 0f, 1f
         ]);
     }
 
-    private static void AddVertex(ref MeshData mesh, float x, float y, float z, float u, float v)
+    private static void AddVertex(ref MeshData mesh, float x, float y, float z, float u, float v, float light)
     {
         var vertices = mesh.Vertices;
 
@@ -515,6 +555,7 @@ public static class MeshBuilder
         vertices.Add(z);
         vertices.Add(u);
         vertices.Add(v);
+        vertices.Add(light);
     }
 
     private static float U(float u, AtlasRegion region)

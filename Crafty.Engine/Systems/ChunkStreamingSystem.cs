@@ -1,6 +1,7 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.Engine.Components;
 using Crafty.Engine.Jobs;
+using Crafty.Engine.Systems.Lighting;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
@@ -135,7 +136,7 @@ public class ChunkStreamingSystem(World world) : IGameplaySystem
         foreach (var (x, z) in _loadedChunks)
         {
             if (!requiredChunks.Contains((x, z)))
-                SystemAPI.JobSystem.Submit(new UnloadChunkJob(x, z));
+                SystemAPI.JobSystem.Submit(new UnloadChunkJob(_world, x, z));
         }
 
         _loadedChunks = requiredChunks;

@@ -9,12 +9,25 @@ public sealed class World
     public string Directory { get; set; } = null!;
     public ulong Seed { get; set; }
     public event Action<BlockChanged>? BlockChanged;
-
     public readonly ConcurrentDictionary<(int X, int Z), IChunk> chunks = [];
 
     public IChunk? GetChunk(int x, int z)
     {
         return chunks.GetValueOrDefault((x, z));
+    }
+
+    public bool TryGetChunk(int x, int z, out IChunk chunk)
+    {
+        try
+        {
+            chunk = chunks[(x, z)];
+            return true;
+        }
+        catch (Exception)
+        {
+            chunk = null!;
+            return false;
+        }
     }
 
     public void LoadChunk(IChunk chunk)
@@ -82,4 +95,6 @@ public sealed class World
 
         BlockChanged?.Invoke(new(x, y, z, oldId, id));
     }
+
+
 }

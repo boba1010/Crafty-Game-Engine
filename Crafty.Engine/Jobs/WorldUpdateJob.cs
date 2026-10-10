@@ -4,7 +4,7 @@ using CraftyNative.ThreeD.Meshes;
 
 namespace Crafty.Engine.Jobs;
 
-public readonly struct WorldMeshUpdateJob(World world) : IJob
+public readonly struct WorldUpdateJob(World world) : IJob
 {
     private readonly World _world = world;
     public void Execute()

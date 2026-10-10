@@ -14,6 +14,6 @@ public sealed class WorldMeshUpdateSystem(World world) : ISystem
         if (!WorldMeshManager.HasDirtyBlocks)
             return;
 
-        SystemAPI.JobSystem.Submit(new WorldMeshUpdateJob(world));
+        SystemAPI.JobSystem.Submit(new WorldUpdateJob(world));
     }
 }

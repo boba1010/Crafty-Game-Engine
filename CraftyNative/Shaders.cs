@@ -33,8 +33,16 @@ public unsafe static class Shaders
                 &code,
                 &errors);
 
+
             if (result < 0)
-                throw new InvalidOperationException($"Shader compilation failed. HRESULT: 0x{result:X8}");
+            {
+                string diagnostics = errors is not null
+                    ? Marshal.PtrToStringUTF8((nint)errors->GetBufferPointer(), (int)errors->GetBufferSize())?.TrimEnd('\0', '\r', '\n') 
+                        ?? "No compiler diagnostics available." 
+                        : "No compiler diagnostics available.";
+
+                throw new InvalidOperationException($"Shader compilation failed: {entryPoint} ({target})\n" + $"HRESULT: 0x{result:X8}\n{diagnostics}");
+            }
 
             var bytecode = new byte[code->GetBufferSize()];
 

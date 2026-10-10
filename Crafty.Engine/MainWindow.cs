@@ -5,6 +5,8 @@ using Crafty.Engine.Components;
 using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
 using Crafty.Engine.Systems;
+using Crafty.Engine.Systems.Lighting;
+using Crafty.Engine.Systems.Physics;
 using Crafty.Engine.UI;
 using CraftyNative;
 using CraftyNative.Animation;
@@ -13,6 +15,7 @@ using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Physics;
+using CraftyNative.ThreeD.World;
 using CraftyNative.UI;
 using System.Numerics;
 
@@ -24,6 +27,10 @@ public sealed class MainWindow : Window
     private GameWorld _gameWorld = null!;
     private World _world = null!;
     private bool _quitRequested;
+    private AnimatedMesh _playerAnimation = null!;
+    private AnimationManager _animationManager = null!;
+    private WorldObject _player;
+    private WorldObject _camera;
 
     public MainWindow()
     {
@@ -96,10 +103,6 @@ public sealed class MainWindow : Window
         _quitRequested = true;
     }
 
-    private AnimatedMesh _playerAnimation = null!;
-    private AnimationManager _animationManager = null!;
-    private WorldObject _player;
-    private WorldObject _camera;
     private void Window_Activated(object? sender, EventArgs e)
     {
         GameStateManager.Set(GameState.Paused);
@@ -139,14 +142,22 @@ public sealed class MainWindow : Window
 
         WorldManager.Load();
         _world = WorldManager.Current;
-        _world.BlockChanged += (change) => WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
+        _world.BlockChanged += change =>
+        {
+            SkyLightSystem.OnBlockChanged(_world, change.X, change.Y, change.Z, change.OldId, change.NewId);
+
+            const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
+
+            for (int y = 0; y < worldHeight; y++)
+                WorldMeshManager.MarkBlockDirty(change.X, y, change.Z);
+        };
 
         _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));
         _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
         _gameWorld.Scene.Systems.Add(new HotbarSystem());
         _gameWorld.Scene.Systems.Add(new InventorySystem());
         _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));
-        _gameWorld.Scene.Systems.Add(new CollisionSystem());
+        _gameWorld.Scene.Systems.Add(new CollisionSystem(_world));
         _gameWorld.Scene.Systems.Add(new PlayerBlockInteractionSystem(_world));
         _gameWorld.Scene.Systems.Add(new WorldMeshUpdateSystem(_world));
 

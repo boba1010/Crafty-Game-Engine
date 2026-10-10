@@ -5,7 +5,7 @@ namespace Crafty.Engine.Helpers;
 
 public static class ChunkHelper
 {
-    public static uint GetBlockIdByGlobalPosition(int x, int y, int z)
+    public static uint GetBlockIdByGlobalPosition(World world, int x, int y, int z)
     {
         if ((uint)y >= 416)
             return 0;
@@ -25,7 +25,7 @@ public static class ChunkHelper
             localZ += Chunk.Size;
         }
 
-        if (!ChunkCache.TryGet(chunkX, chunkZ, out var chunk))
+        if (!world.TryGetChunk(chunkX, chunkZ, out var chunk))
             return 0;
 
         return chunk!.GetBlock(localX, y, localZ).Id;

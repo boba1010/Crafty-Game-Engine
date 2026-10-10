@@ -6,7 +6,7 @@ using CraftyNative.ThreeD;
 using System.Diagnostics;
 using System.Numerics;
 
-namespace Crafty.Engine.Systems;
+namespace Crafty.Engine.Systems.Physics;
 
 public sealed class PlayerMovementSystem : IGameplaySystem
 {

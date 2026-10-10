@@ -31,9 +31,7 @@
 		    <AssetFiles Include="Assets\**\*" />
 	    </ItemGroup>
 
-	    <Copy
-		    SourceFiles="@(AssetFiles)"
-		    DestinationFiles="@(AssetFiles->'$(OutputPath)Assets\%(RecursiveDir)%(Filename)%(Extension)')" />
+	    <Copy SourceFiles="@(AssetFiles)" DestinationFiles="@(AssetFiles->'$(OutputPath)Assets\%(RecursiveDir)%(Filename)%(Extension)')" />
     </Target>
 	
   <ItemGroup>
