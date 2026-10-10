@@ -67,7 +67,7 @@ public static class ChunkStreamingQueue
 
     private static Thread[] CreateWorkers()
     {
-        int count = Math.Max(1, Environment.ProcessorCount - 1);
+        int count = Math.Max(1, System.Environment.ProcessorCount - 1);
 
         return [.. Enumerable.Range(0, count).Select(_ => new Thread(Worker) { IsBackground = true })];
     }

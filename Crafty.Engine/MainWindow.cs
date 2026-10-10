@@ -145,11 +145,7 @@ public sealed class MainWindow : Window
         _world.BlockChanged += change =>
         {
             SkyLightSystem.OnBlockChanged(_world, change.X, change.Y, change.Z, change.OldId, change.NewId);
-
-            const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
-
-            for (int y = 0; y < worldHeight; y++)
-                WorldMeshManager.MarkBlockDirty(change.X, y, change.Z);
+            WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
         };
 
         _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));

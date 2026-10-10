@@ -1,4 +1,5 @@
-﻿using CraftyNative.HUD;
+﻿using CraftyNative.Environment;
+using CraftyNative.HUD;
 using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
@@ -335,6 +336,7 @@ public unsafe static class CraftyNative
 
         Vector2 size = new(Window.Size.X, Window.Size.Y);
 
+        SkyRenderer.Initialize(Device);
         HudRenderer.Initialize(Device, size);
         UIRenderer.Initialize(Device);
         UITextRenderer.Initialize(Device, FontLoader.Load(Device, "Assets/Fonts/Roboto-Regular.ttf", 32));
@@ -419,11 +421,12 @@ public unsafe static class CraftyNative
 
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(camera.FieldOfView, size.X / (float)size.Y, camera.NearPlane, camera.FarPlane);
 
-        var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, out var visibleSections);
+        SkyRenderer.Render(_commandBuffer, cameraTransform.Position, view, projection);
 
         // ---- Pass 1: opaque + cutout (world sections, then entities/items) ----
         _commandBuffer.SetPipeline(_pipeline);
 
+        var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, out var visibleSections);
         for (int i = 0; i < visibleSectionsCount; i++)
         {
             var section = visibleSections[i];
@@ -540,6 +543,7 @@ public unsafe static class CraftyNative
 
     public static void Dispose()
     {
+        SkyRenderer.Dispose();
         HudRenderer.Dispose();
         UIRenderer.Dispose();
         UITextRenderer.Dispose();

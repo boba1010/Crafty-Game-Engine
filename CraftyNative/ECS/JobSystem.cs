@@ -12,7 +12,7 @@ public sealed class JobSystem : IJobSystem, IDisposable
 
     public JobSystem()
     {
-        int threadCount = Math.Max(2, Environment.ProcessorCount - 1);
+        int threadCount = Math.Max(2, System.Environment.ProcessorCount - 1);
         _workerThreads = new Thread[threadCount];
 
         for (int i = 0; i < threadCount; i++)
