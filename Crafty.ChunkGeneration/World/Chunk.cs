@@ -33,11 +33,6 @@ public sealed class Chunk : IChunk
         }
     }
 
-    //public int GetHeight(int x, int z)
-    //{
-    //    throw new NotImplementedException();
-    //}
-
     public void SetBlock(int x, int y, int z, BlockPlacement block)
     {
         int index = GetIndex(x, y, z);

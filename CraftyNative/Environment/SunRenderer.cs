@@ -9,7 +9,7 @@ namespace CraftyNative.Environment;
 public static class SunRenderer
 {
 
-    public static Vector3 SunDirection { get; set; } = Vector3.Normalize(new(-0.4f, 0.8f, 0.3f));
+    public static Vector3 Direction { get; set; } = Vector3.Normalize(new(-0.4f, 0.8f, 0.3f));
     public static Vector3 SunColor { get; set; } = new(1f, 0.8f, 0f);
     public static float SunSize { get; set; } = 5f;
     public static bool SunVisible { get; set; } = true;
@@ -191,7 +191,7 @@ public static class SunRenderer
         if (!SunVisible)
             return;
 
-        Vector3 direction = SunDirection;
+        Vector3 direction = Direction;
         if (direction.LengthSquared() < 0.0001f)
             return;
 

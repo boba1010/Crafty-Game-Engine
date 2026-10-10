@@ -149,6 +149,7 @@ public sealed class MainWindow : Window
         };
 
         _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));
+        _gameWorld.Scene.Systems.Add(new WorldTimeSystem());
         _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
         _gameWorld.Scene.Systems.Add(new HotbarSystem());
         _gameWorld.Scene.Systems.Add(new InventorySystem());
