@@ -6,16 +6,13 @@ using Vulcan.Graphics;
 
 namespace CraftyNative.Environment;
 
-public static class SunRenderer
+public static class MoonRenderer
 {
-
-    public static Vector3 Direction { get; set; } = Vector3.Normalize(new(-0.4f, 0.8f, 0.3f));
-    public static Vector3 SunColor { get; set; } = new(1f, 0.8f, 0f);
-    public static float SunSize { get; set; } = 5f;
-    public static bool SunVisible { get; set; } = true;
+    public static float MoonSize { get; set; } = 5f;
+    public static bool MoonVisible { get; set; } = true;
 
     private const uint VertexStride = 20;
-    private const float SunDistance = 50f;
+    private const float MoonDistance = 50f;
 
     private static IBuffer _vertexBuffer = null!;
     private static IBuffer _constantBuffer = null!;
@@ -26,8 +23,8 @@ public static class SunRenderer
     private static IDepthStencilState _depthStencilState = null!;
     private static IBlendState _blendState = null!;
     private static IPipeline _pipeline = null!;
-    private static ITexture _sunTexture = null!;
-    private static ISampler _sunSampler = null!;
+    private static ITexture _moonTexture = null!;
+    private static ISampler _moonSampler = null!;
 
     internal static void Initialize(IGraphicsDevice device)
     {
@@ -60,7 +57,7 @@ public static class SunRenderer
             float2 UV : TEXCOORD0;
         };
 
-        cbuffer SunConstants : register(b0)
+        cbuffer MoonConstants : register(b0)
         {
             row_major matrix MVP;
         };
@@ -73,12 +70,12 @@ public static class SunRenderer
             return output;
         }
 
-        Texture2D SunTexture : register(t0);
-        SamplerState SunSampler : register(s0);
+        Texture2D MoonTexture : register(t0);
+        SamplerState MoonSampler : register(s0);
 
         float4 PSMain(VSOutput input) : SV_Target
         {
-            return SunTexture.Sample(SunSampler, input.UV);
+            return MoonTexture.Sample(MoonSampler, input.UV);
         }
         """;
 
@@ -149,15 +146,15 @@ public static class SunRenderer
             Blend = _blendState
         });
 
-        LoadSunTexture(device, Path.Combine("Assets", "Textures", "Environment", "sun.png"));
+        LoadMoonTexture(device, Path.Combine("Assets", "Textures", "Environment", "moon.png"));
     }
 
-    private static void LoadSunTexture(IGraphicsDevice device, string path)
+    private static void LoadMoonTexture(IGraphicsDevice device, string path)
     {
         using var stream = File.OpenRead(path);
         var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
 
-        _sunTexture = device.CreateTexture(new()
+        _moonTexture = device.CreateTexture(new()
         {
             Width = (uint)image.Width,
             Height = (uint)image.Height,
@@ -170,9 +167,9 @@ public static class SunRenderer
             Samples = SampleCount.X1
         });
 
-        _sunTexture.Upload(image.Data, (uint)(image.Width * 4));
+        _moonTexture.Upload(image.Data, (uint)(image.Width * 4));
 
-        _sunSampler = device.CreateSampler(new()
+        _moonSampler = device.CreateSampler(new()
         {
             MinFilter = Filter.Linear,
             MagFilter = Filter.Linear,
@@ -187,10 +184,10 @@ public static class SunRenderer
 
     internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 view, Matrix4x4 projection)
     {
-        if (!SunVisible)
+        if (!MoonVisible)
             return;
 
-        Vector3 direction = Direction;
+        Vector3 direction = -SunRenderer.Direction;
         if (direction.LengthSquared() < 0.0001f)
             return;
 
@@ -201,8 +198,8 @@ public static class SunRenderer
         Vector3 right = Vector3.Normalize(Vector3.Cross(direction, referenceUp));
         Vector3 up = Vector3.Normalize(Vector3.Cross(right, direction));
 
-        Vector3 center = cameraPosition + direction * SunDistance;
-        float size = MathF.Max(0.01f, SunSize);
+        Vector3 center = cameraPosition + direction * MoonDistance;
+        float size = MathF.Max(0.01f, MoonSize);
 
         Vector3 bottomLeft = center - right * size - up * size;
         Vector3 topLeft = center - right * size + up * size;
@@ -221,7 +218,7 @@ public static class SunRenderer
 
         _vertexBuffer.Upload(MemoryMarshal.AsBytes(vertices.AsSpan()));
 
-        var constants = new SunConstants
+        var constants = new MoonConstants
         {
             MVP = view * projection,
         };
@@ -231,9 +228,9 @@ public static class SunRenderer
         commandBuffer.SetPipeline(_pipeline);
         commandBuffer.SetVertexBuffer(_vertexBuffer, VertexStride);
         commandBuffer.SetUniformBuffer(_constantBuffer, 0);
-        commandBuffer.SetSampler(_sunSampler, 0);
+        commandBuffer.SetSampler(_moonSampler, 0);
 
-        commandBuffer.SetTexture(_sunTexture, 0);
+        commandBuffer.SetTexture(_moonTexture, 0);
         commandBuffer.Draw(6);
     }
 
@@ -246,14 +243,14 @@ public static class SunRenderer
         _vertexLayout?.Dispose();
         _vertexShader?.Dispose();
         _fragmentShader?.Dispose();
-        _sunSampler?.Dispose();
-        _sunTexture?.Dispose();
+        _moonSampler?.Dispose();
+        _moonTexture?.Dispose();
         _constantBuffer?.Dispose();
         _vertexBuffer?.Dispose();
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct SunConstants
+    private struct MoonConstants
     {
         public Matrix4x4 MVP;
     }

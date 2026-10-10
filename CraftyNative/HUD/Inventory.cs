@@ -89,21 +89,16 @@ public static class Inventory
     private static Vector2 _cursorPosition;
 
     private static readonly Mesh?[] _slotMeshes = new Mesh?[TotalSlots];
-    private static readonly string[] _slotKeys = new string[TotalSlots];
 
     private static readonly Mesh?[] _paletteMeshes = new Mesh?[PaletteSlots];
-    private static readonly string[] _paletteKeys = new string[PaletteSlots];
 
     private static readonly Mesh?[] _tabMeshes = new Mesh?[MaxTabs];
-    private static readonly string[] _tabKeys = new string[MaxTabs];
     private static int _tabCount;
     private static int _activeTab;
 
     private static Mesh? _heldMesh;
-    private static string _heldKey = string.Empty;
 
     private static Mesh? _modelMesh;
-    private static string _modelKey = "player_model";
 
     public static bool IsOpen { get; private set; }
     public static bool HasHeldItem => _heldMesh != null;
@@ -397,53 +392,47 @@ public static class Inventory
         SetCursor(_cursorPosition);
     }
 
-    public static void SetTabIcon(int tab, Mesh? mesh, string? materialKey = null)
+    public static void SetTabIcon(int tab, Mesh? mesh)
     {
         if ((uint)tab >= MaxTabs) return;
 
         _tabMeshes[tab] = mesh;
-        _tabKeys[tab] = materialKey ?? $"tab_{tab}_{++_keyVersion}";
     }
 
     // ---------------------------------------------------------------- slot contents
 
     // materialKey: stable key per block type so identical blocks share one cached texture.
-    public static void SetSlot(int slot, Mesh? mesh, string? materialKey = null, int count = 1)
+    public static void SetSlot(int slot, Mesh? mesh, int count = 1)
     {
         if ((uint)slot >= TotalSlots)
             return;
 
         _slotMeshes[slot] = mesh;
-        _slotKeys[slot] = materialKey ?? $"inventory_{slot}_{++_keyVersion}";
         _slotCounts[slot] = count;
     }
 
     /// <summary>One entry of the current creative page (0..PaletteSlots-1), shown in place of storage.</summary>
-    public static void SetPaletteSlot(int index, Mesh? mesh, string? materialKey = null)
+    public static void SetPaletteSlot(int index, Mesh? mesh)
     {
         if ((uint)index >= PaletteSlots) return;
 
         _paletteMeshes[index] = mesh;
-        _paletteKeys[index] = materialKey ?? $"palette_{index}_{++_keyVersion}";
     }
 
-    public static void SetPlayerModel(Mesh? mesh, string? materialKey = null)
+    public static void SetPlayerModel(Mesh? mesh)
     {
         _modelMesh = mesh;
-        _modelKey = materialKey ?? "player_model";
     }
 
-    public static void SetHeldItem(Mesh? mesh, string? materialKey = null, int count = 1)
+    public static void SetHeldItem(Mesh? mesh, int count = 1)
     {
         _heldMesh = mesh;
-        _heldKey = materialKey ?? $"inventory_held_{++_keyVersion}";
         _heldCount = count;
     }
 
     public static void ClearHeldItem()
     {
         _heldMesh = null;
-        _heldKey = string.Empty;
         _heldCount = 0;
     }
 
@@ -482,14 +471,7 @@ public static class Inventory
             // hotbar stays at the bottom
             if (slot < Columns)
             {
-                return new Vector2(
-                    MathF.Round(panel.X + Padding + slot * step),
-                    MathF.Round(
-                        panel.Y +
-                        Padding +
-                        CreativeHeight +
-                        SectionGap)
-                );
+                return new Vector2(MathF.Round(panel.X + Padding + slot * step), MathF.Round(panel.Y + Padding + CreativeHeight + SectionGap));
             }
 
             int palette = slot - Columns;
@@ -497,9 +479,7 @@ public static class Inventory
             int row = palette / Columns;
             int col = palette % Columns;
 
-            return new Vector2(
-                MathF.Round(panel.X + Padding + col * step),
-                MathF.Round(panel.Y + Padding + row * step));
+            return new Vector2(MathF.Round(panel.X + Padding + col * step), MathF.Round(panel.Y + Padding + row * step));
         }
 
         //
@@ -762,19 +742,17 @@ public static class Inventory
 
             bool palette = _activeTab != 0 && i >= Columns;
             var mesh = palette ? _paletteMeshes[i - Columns] : _slotMeshes[i];
-            var key = palette ? _paletteKeys[i - Columns] : _slotKeys[i];
 
             if (mesh == null || mesh.Vertices.Count == 0 || mesh.Indices.Count == 0)
                 continue;
 
             if (!any)
             {
-                // Wipe depth so the panel's meshes aren't clipped by the hotbar's meshes or the world
                 commandBuffer.ClearDepth(1f);
                 any = true;
             }
 
-            Hotbar.DrawMeshInRect(commandBuffer, mesh, key, GetSlotCenter(i), MeshSize);
+            Hotbar.DrawMeshInRect(commandBuffer, mesh, GetSlotCenter(i), MeshSize);
         }
 
         // Player model
@@ -802,14 +780,14 @@ public static class Inventory
                 any = true;
             }
 
-            Hotbar.DrawMeshInRect(commandBuffer, mesh, _tabKeys[t], GetTabCenter(t), TabIconSize);
+            Hotbar.DrawMeshInRect(commandBuffer, mesh, GetTabCenter(t), TabIconSize);
         }
 
         if (hasHeld)
         {
             // Held item draws last, on top of the slot and tab meshes
             commandBuffer.ClearDepth(1f);
-            Hotbar.DrawMeshInRect(commandBuffer, _heldMesh!, _heldKey, _cursorPosition, MeshSize);
+            Hotbar.DrawMeshInRect(commandBuffer, _heldMesh!, _cursorPosition, MeshSize);
         }
 
         if (any || hasHeld)
@@ -872,7 +850,7 @@ public static class Inventory
 
         var proj = Matrix4x4.CreateOrthographic(1.2f * ModelWidth / ModelHeight, 1.2f, 0.1f, 10f);
 
-        Renderer.DrawHudMesh(mesh, m * proj, _modelKey);
+        Renderer.DrawHudMesh(mesh, m * proj);
     }
 
     public static void Dispose()

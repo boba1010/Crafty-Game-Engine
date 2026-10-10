@@ -140,7 +140,7 @@ public sealed class InventorySystem : ISystem
             var model = new WorldObject(1);
 
             ref var renderable = ref scene.GetRenderable(model);
-            HudInventory.SetPlayerModel(renderable.Mesh, "player_model");
+            HudInventory.SetPlayerModel(renderable.Mesh);
 
             _modelSynced = true;
         }
@@ -194,7 +194,7 @@ public sealed class InventorySystem : ISystem
             if (idx < items.Length)
             {
                 var s = MakeSlot(items[idx], 1);
-                HudInventory.SetPaletteSlot(i, ResolveMesh(s), ResolveKey(s));
+                HudInventory.SetPaletteSlot(i, ResolveMesh(s));
             }
             else
             {
@@ -422,12 +422,11 @@ public sealed class InventorySystem : ISystem
             hotbar.Slots[slot] = s;   // keep the ECS hotbar component in step
 
         var mesh = s.Count > 0 ? ResolveMesh(s) : null;
-        var key = mesh is null ? null : ResolveKey(s);
 
-        HudInventory.SetSlot(slot, mesh, key, s.Count);
+        HudInventory.SetSlot(slot, mesh, s.Count);
 
         if (slot < HudInventory.Columns)
-            CraftyNative.HUD.Hotbar.SetSlot(slot, mesh, key, s.Count);
+            CraftyNative.HUD.Hotbar.SetSlot(slot, mesh, s.Count);
     }
 
     private void SyncChangedSlots(ref Inventory inventory, ref Hotbar hotbar)
@@ -449,7 +448,7 @@ public sealed class InventorySystem : ISystem
     private void SyncHeld()
     {
         if (_heldSlot is { } held && held.Count > 0)
-            HudInventory.SetHeldItem(ResolveMesh(held), ResolveKey(held), held.Count);
+            HudInventory.SetHeldItem(ResolveMesh(held), held.Count);
         else
             HudInventory.ClearHeldItem();
     }
@@ -467,8 +466,6 @@ public sealed class InventorySystem : ISystem
 
         return mesh;
     }
-
-    private static string ResolveKey(InventorySlot slot) => slot.BlockId is uint id ? $"block_{id}" : $"item_{slot.ItemId}";
 
     private static int MaxStackFor(uint itemId) => GetItem(itemId).MaxStackSize;
     private static int MaxStackFor(in InventorySlot s) => MaxStackFor(s.ItemId);

@@ -18,6 +18,8 @@ public unsafe static class CraftyNative
 {
     public static IWindow Window { get; private set; } = null!;
     public static IGraphicsDevice Device { get; private set; } = null!;
+    public static float Daylight { get; set; } = 1f;
+    public static float Moonlight { get; set; } = 1f;
 
     private static readonly Dictionary<Mesh, GPUMesh> _gpuMeshes = [];
 
@@ -153,6 +155,9 @@ public unsafe static class CraftyNative
         cbuffer Transform : register(b0)
         {
             row_major matrix MVP;
+            float Daylight;
+            float Moonlight;
+            float3 Padding;
         };
 
         VSOutput VSMain(VSInput input)
@@ -171,7 +176,10 @@ public unsafe static class CraftyNative
         {
             float4 color = Texture.Sample(Sampler, input.UV);
             clip(color.a - 0.5f);
-            color.rgb *= saturate(input.Light);
+
+            float ambient = 0.04f + saturate(Daylight) * 0.96f + saturate(Moonlight) * 0.12f;
+            color.rgb *= saturate(input.Light) * saturate(ambient);
+
             return color;
         }
 
@@ -179,7 +187,10 @@ public unsafe static class CraftyNative
         {
             float4 color = Texture.Sample(Sampler, input.UV);
             clip(color.a - 0.004f);
-            color.rgb *= saturate(input.Light);
+
+            float ambient = 0.04f + saturate(Daylight) * 0.96f + saturate(Moonlight) * 0.12f;
+            color.rgb *= saturate(input.Light) * saturate(ambient);
+
             return color;
         }
         """;
@@ -310,7 +321,7 @@ public unsafe static class CraftyNative
 
         _constantBuffer = Device.CreateBuffer(new()
         {
-            Size = 64,
+            Size = 80,
             Usage = BufferUsage.Uniform,
             MemoryUsage = MemoryUsage.Upload
         });
@@ -494,7 +505,7 @@ public unsafe static class CraftyNative
         _swapchain.Present();
     }
 
-    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp)
+    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, bool applyWorldLighting = true)
     {
         var gpuMesh = GetOrCreateMesh(mesh);
         if (mesh.IsDirty)
@@ -503,9 +514,18 @@ public unsafe static class CraftyNative
             mesh.ClearDirty();
         }
 
-        var mvpData = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref mvp, 1));
+        Span<byte> data = stackalloc byte[80];
+        data.Clear();
 
-        _constantBuffer.Upload(mvpData);
+        MemoryMarshal.Write(data, in mvp);
+
+        float daylight = applyWorldLighting ? Daylight : 1f;
+        MemoryMarshal.Write(data[64..], in daylight);
+
+        float moonlight = applyWorldLighting ? Moonlight : 0f;
+        MemoryMarshal.Write(data[68..], in moonlight);
+
+        _constantBuffer.Upload(data);
 
         _commandBuffer.SetVertexBuffer(gpuMesh.VertexBuffer, mesh.VertexStride);
 
@@ -534,11 +554,10 @@ public unsafe static class CraftyNative
         gpuMesh.VertexBuffer.Upload(data);
     }
 
-    // materialId is unused now; remove it from HudRenderer when convenient
-    internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp, string materialId)
+    internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp)
     {
         _commandBuffer.SetPipeline(_pipeline);
-        DrawMesh(mesh, mvp);
+        DrawMesh(mesh, mvp, false);
     }
 
     public static void Dispose()

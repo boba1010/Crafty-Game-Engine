@@ -151,6 +151,7 @@ public static class SkyRenderer
         });
 
         SunRenderer.Initialize(device);
+        MoonRenderer.Initialize(device);
     }
 
     internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 view, Matrix4x4 projection)
@@ -169,6 +170,7 @@ public static class SkyRenderer
         commandBuffer.Draw(6);
 
         SunRenderer.Render(commandBuffer, cameraPosition, view, projection);
+        MoonRenderer.Render(commandBuffer, cameraPosition, view, projection);
     }
 
     public static void Dispose()

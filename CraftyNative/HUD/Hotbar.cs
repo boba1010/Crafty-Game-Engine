@@ -22,9 +22,7 @@ public static class Hotbar
     private static Vector2 _size;
     private static int _selectedSlot = 0;
     private static readonly Mesh?[] _slotMeshes = new Mesh?[SlotCount];
-    private static readonly string[] _slotKeys = new string[SlotCount];
-    private static readonly Dictionary<Mesh, (Vector3 Center, float Scale)> _bounds = new();
-    private static int _keyVersion;
+    private static readonly Dictionary<Mesh, (Vector3 Center, float Scale)> _bounds = [];
 
     private const int FloatsPerVertex = 6; // x, y, r, g, b, a
     private const int SlotCount = 9;
@@ -313,13 +311,12 @@ public static class Hotbar
 
     // materialKey: pass a stable key per block type so identical blocks share one cached texture.
     // If omitted, a unique key is generated per assignment (safe, but uploads a texture each time).
-    public static void SetSlot(int slot, Mesh? mesh, string? materialKey = null, int count = 1)
+    public static void SetSlot(int slot, Mesh? mesh, int count = 1)
     {
         if ((uint)slot >= SlotCount)
             return;
 
         _slotMeshes[slot] = mesh;
-        _slotKeys[slot] = materialKey ?? $"hotbar_{slot}_{++_keyVersion}";
         _slotCounts[slot] = count;
     }
 
@@ -362,7 +359,7 @@ public static class Hotbar
                 MaxDepth = 1
             });
 
-            Renderer.DrawHudMesh(mesh, BuildSlotMvp(mesh), _slotKeys[i]);
+            Renderer.DrawHudMesh(mesh, BuildSlotMvp(mesh));
         }
 
         if (any)
@@ -392,7 +389,7 @@ public static class Hotbar
         _digits.Flush(commandBuffer, _pipeline);
     }
 
-    public static void DrawMeshInRect(ICommandBuffer commandBuffer, Mesh mesh, string materialKey, Vector2 center, float size)
+    public static void DrawMeshInRect(ICommandBuffer commandBuffer, Mesh mesh, Vector2 center, float size)
     {
         commandBuffer.SetViewport(new Viewport
         {
@@ -404,7 +401,7 @@ public static class Hotbar
             MaxDepth = 1
         });
 
-        Renderer.DrawHudMesh(mesh, BuildSlotMvp(mesh), materialKey);
+        Renderer.DrawHudMesh(mesh, BuildSlotMvp(mesh));
     }
 
     public static Mesh? GetSlotMesh(int slot)
@@ -413,14 +410,6 @@ public static class Hotbar
             return null;
 
         return _slotMeshes[slot];
-    }
-
-    public static string GetSlotKey(int slot)
-    {
-        if ((uint)slot >= SlotCount)
-            return string.Empty;
-
-        return _slotKeys[slot];
     }
 
     public static void Dispose()

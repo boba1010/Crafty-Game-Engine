@@ -79,7 +79,7 @@ public sealed class HotbarSystem : IGameplaySystem
                 _shownBlocks[i] = blockId;
 
                 if (blockId is ushort block)
-                    CraftyNative.HUD.Hotbar.SetSlot(i, GetBlockMesh(block), $"hotbar_block_{block}");
+                    CraftyNative.HUD.Hotbar.SetSlot(i, GetBlockMesh(block));
                 else
                     CraftyNative.HUD.Hotbar.SetSlot(i, null);
             }
