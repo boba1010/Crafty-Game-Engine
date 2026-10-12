@@ -1,5 +1,4 @@
 ﻿using Crafty.ChunkGeneration;
-using Crafty.ChunkGeneration.IO;
 using Crafty.ChunkGeneration.World;
 using Crafty.Engine.Components;
 using Crafty.Engine.Core;
@@ -15,14 +14,16 @@ using CraftyNative.Scenes;
 using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Physics;
-using CraftyNative.ThreeD.World;
-using CraftyNative.UI;
 using System.Numerics;
 
 namespace Crafty.Engine;
 
 public sealed class MainWindow : Window
 {
+    private static double _elapsed;
+    private static int _frames;
+    public static int FPS { get; private set; }
+    public double WorstFrameTime { get; private set; }
     public PlayerCameraSystem CameraSystem;
     private GameWorld _gameWorld = null!;
     private World _world = null!;
@@ -31,6 +32,8 @@ public sealed class MainWindow : Window
     private AnimationManager _animationManager = null!;
     private WorldObject _player;
     private WorldObject _camera;
+    private WorldObject _hand;
+    private WorldObject _heldBlock;
 
     public MainWindow()
     {
@@ -77,12 +80,6 @@ public sealed class MainWindow : Window
         if (GameStateManager.IsPaused)
             return;
 
-        if (GameStateManager.IsInventory)
-        {
-            CraftyNative.HUD.Inventory.SetCursor(position);
-            return;
-        }
-
         CameraSystem.IsMouseMoving = true;
         CameraSystem.Update(ref _gameWorld.Scene);
         CameraSystem.IsMouseMoving = false;
@@ -113,6 +110,11 @@ public sealed class MainWindow : Window
         };
 
         PauseMenu.Initialize(Resume, QuitAndSave);
+        HudHotbar.Initialize();
+        HudInventory.Initialize();
+
+        HudInventory.AddTab("Natural Blocks", null, MeshBuilder.BuildBlockMesh(1));
+        HudInventory.SetItem("Natural Blocks", MeshBuilder.BuildBlockMesh(1), 1);
 
         _camera = _gameWorld.Scene.CreateObject();
         var playerModel = BuildPlayer();
@@ -122,7 +124,7 @@ public sealed class MainWindow : Window
 
         _gameWorld.Scene.AddComponent(_camera, new Transform
         {
-            LocalPosition = new(0, 0.5f, 0),
+            LocalPosition = new(0, 0.7f, 0),
         });
         _gameWorld.Scene.AddComponent(_camera, new Camera
         {
@@ -152,6 +154,17 @@ public sealed class MainWindow : Window
         _gameWorld.Scene.Systems.Add(new WorldTimeSystem());
         _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
         _gameWorld.Scene.Systems.Add(new HotbarSystem());
+
+        var meshCache = new Dictionary<uint, Mesh>();
+        InventorySystem.MeshResolver = slot =>
+        {
+            uint block = slot.BlockId ?? slot.ItemId;
+            if (!meshCache.TryGetValue(block, out var mesh))
+                meshCache[block] = mesh = MeshBuilder.BuildBlockMesh(block);
+            return mesh;
+        };
+        InventorySystem.BlockIdResolver = itemId => itemId;
+
         _gameWorld.Scene.Systems.Add(new InventorySystem());
         _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));
         _gameWorld.Scene.Systems.Add(new CollisionSystem(_world));
@@ -176,6 +189,7 @@ public sealed class MainWindow : Window
             LockXAxis = true,
             LockZAxis = true,
             LocalPosition = new(0, -0.9f, 0)
+            //Position = new(0, 75, 0)
         });
 
         _gameWorld.Scene.SetRenderable(playerModel, new(mesh, false));
@@ -183,8 +197,7 @@ public sealed class MainWindow : Window
         return playerModel;
     }
 
-    private WorldObject _hand;
-    private WorldObject _heldBlock;
+    
     private void BuildHand()
     {
         var mesh = MeshBuilder.BuildPlayerHandMesh();
@@ -212,11 +225,6 @@ public sealed class MainWindow : Window
         _gameWorld.Scene.SetParent(_heldBlock, _hand);
     }
 
-    private static double _elapsed;
-    private static int _frames;
-    public static int FPS { get; private set; }
-    public double WorstFrameTime { get; private set; }
-
     protected override void Render(double deltaTime)
     {
         ref var movement = ref _gameWorld.Scene.GetComponent<Movement>(_player);
@@ -225,11 +233,11 @@ public sealed class MainWindow : Window
         bool isMoving = movement.Velocity.X != 0f || movement.Velocity.Z != 0f;
         _animationManager.Update((float)deltaTime, isMoving, ref cameraTransform);
 
+        HudInventory.Render(Size);
+        HudHotbar.Render(Size);
+
         if (GameStateManager.IsPaused)
-        {
-            UIRenderer.DrawRectangle(new(0, 0), Size, new(0, 0, 0, 0.35f));
             PauseMenu.Render(Size);
-        }
 
         _gameWorld.Render(deltaTime);
 

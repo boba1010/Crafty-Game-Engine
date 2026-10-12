@@ -7,6 +7,7 @@ public sealed class InputManager : IDisposable
 {
     public static Vector2 MousePosition { get; internal set; }
     public static Vector2 MouseDelta { get; internal set; }
+    public static float ScrollDelta { get; internal set; }
     public Cursor CursorMode
     {
         get => (Cursor)_mouse.Cursor.CursorMode;
@@ -38,6 +39,7 @@ public sealed class InputManager : IDisposable
 
     private void _mouse_Scroll(IMouse mouse, ScrollWheel scroll)
     {
+        ScrollDelta = scroll.Y;
         MouseWheel?.Invoke(scroll.Y);
     }
 

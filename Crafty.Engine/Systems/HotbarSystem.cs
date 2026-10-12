@@ -1,4 +1,5 @@
 ﻿using Crafty.Engine.Components;
+using Crafty.Engine.UI;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
@@ -16,7 +17,7 @@ public sealed class HotbarSystem : IGameplaySystem
     public HotbarSystem()
     {
         SystemAPI.Input.KeyDown += Input_KeyDown;
-        SystemAPI.Input.MouseWheel += Input_MouseWheel; ;
+        SystemAPI.Input.MouseWheel += Input_MouseWheel;
     }
 
     private void Input_MouseWheel(float delta)
@@ -33,7 +34,7 @@ public sealed class HotbarSystem : IGameplaySystem
 
         _selectedSlot = (_selectedSlot + SlotCount) % SlotCount;
 
-        CraftyNative.HUD.Hotbar.SetSelectedSlot(_selectedSlot);
+        HudHotbar.SetSelectedSlot(_selectedSlot);
     }
 
     private void Input_KeyDown(Key key)
@@ -59,7 +60,7 @@ public sealed class HotbarSystem : IGameplaySystem
             return;
 
         _selectedSlot = slot;
-        CraftyNative.HUD.Hotbar.SetSelectedSlot(slot);
+        HudHotbar.SetSelectedSlot(_selectedSlot);
     }
 
     public void Update(ref Scene scene, double deltaTime)
@@ -79,9 +80,9 @@ public sealed class HotbarSystem : IGameplaySystem
                 _shownBlocks[i] = blockId;
 
                 if (blockId is ushort block)
-                    CraftyNative.HUD.Hotbar.SetSlot(i, GetBlockMesh(block));
+                    HudHotbar.SetSlot(i, GetBlockMesh(block));
                 else
-                    CraftyNative.HUD.Hotbar.SetSlot(i, null);
+                    HudHotbar.SetSlot(i, null);
             }
         }
     }

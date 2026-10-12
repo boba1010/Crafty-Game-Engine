@@ -42,9 +42,20 @@ public static class UITextRenderer
     private static ISampler _textSampler = null!;
     private static Vector2 _screenSize;
 
-    private static readonly List<UITextVertex> _textVertices = [];
-
     private static UIFont _font = null!;
+
+    private readonly record struct TextBatch(int StartVertex, int VertexCount, Scissor Scissor);
+
+    // Normal text queue.
+    private static readonly List<UITextVertex> _textVertices = [];
+    private static readonly List<TextBatch> _textBatches = [];
+
+    private static int _batchStartVertex;
+    private static Scissor _activeScissor;
+    private static bool _batchInitialized;
+
+    // Overlay text queue. Always rendered with a full-window scissor.
+    private static readonly List<UITextVertex> _overlayVertices = [];
 
     public static void Initialize(IGraphicsDevice device, UIFont font)
     {
@@ -84,9 +95,11 @@ public static class UITextRenderer
         }
         """;
 
-        var vertexShaderCode = Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
+        var vertexShaderCode =
+            Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
 
-        var fragmentShaderCode = Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
+        var fragmentShaderCode =
+            Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
 
         _textVertexShader = device.CreateShader(new()
         {
@@ -143,7 +156,8 @@ public static class UITextRenderer
             CullMode = CullMode.None,
             FrontFace = FrontFace.CounterClockwise,
             FillMode = FillMode.Solid,
-            DepthClipEnable = true
+            DepthClipEnable = true,
+            ScissorEnable = true
         });
 
         _textBlendState = device.CreateBlendState(new()
@@ -192,6 +206,51 @@ public static class UITextRenderer
 
     public static void DrawText(string text, Vector2 position, float scale, Vector4 color)
     {
+        CaptureScissor();
+        AppendText(_textVertices, text, position, scale, color);
+    }
+
+    public static void DrawOverlayText(string text, Vector2 position, float scale, Vector4 color)
+    {
+        AppendText(_overlayVertices, text, position, scale, color);
+    }
+
+    public static void DrawTextCentered(string text, Vector2 position, Vector2 size, float scale, Vector4 color)
+    {
+        DrawCenteredText(text, position, size, scale, color, overlay: false);
+    }
+
+    public static void DrawTextTopLeft(string text, Vector2 position, float scale, Vector4 color)
+    {
+        float baseline = position.Y + _font.Ascent * scale;
+
+        DrawText(text, new Vector2(position.X, baseline), scale, color);
+    }
+
+    public static void DrawOverlayTextCentered(string text, Vector2 position, Vector2 size, float scale, Vector4 color)
+    {
+        DrawCenteredText(text, position, size, scale, color, overlay: true);
+    }
+
+    private static void DrawCenteredText(string text, Vector2 position, Vector2 size, float scale, Vector4 color, bool overlay)
+    {
+        var textSize = MeasureText(text, scale);
+
+        float x = position.X + (size.X - textSize.X) / 2f;
+        float textHeight = (_font.Ascent - _font.Descent) * scale;
+
+        float baseline = position.Y + (size.Y - textHeight) / 2f + _font.Ascent * scale;
+
+        var textPosition = new Vector2(x, baseline);
+
+        if (overlay)
+            DrawOverlayText(text, textPosition, scale, color);
+        else
+            DrawText(text, textPosition, scale, color);
+    }
+
+    private static void AppendText(List<UITextVertex> vertices, string text, Vector2 position, float scale, Vector4 color)
+    {
         Vector2 cursor = position;
 
         foreach (char character in text)
@@ -203,38 +262,30 @@ public static class UITextRenderer
             var glyphSize = glyph.Size * scale;
 
             float left = glyphPosition.X / _screenSize.X * 2f - 1f;
+
             float right = (glyphPosition.X + glyphSize.X) / _screenSize.X * 2f - 1f;
+
             float top = 1f - glyphPosition.Y / _screenSize.Y * 2f;
+
             float bottom = 1f - (glyphPosition.Y + glyphSize.Y) / _screenSize.Y * 2f;
 
             var uvTopLeft = glyph.UVPosition;
             var uvTopRight = glyph.UVPosition + new Vector2(glyph.UVSize.X, 0);
+
             var uvBottomLeft = glyph.UVPosition + new Vector2(0, glyph.UVSize.Y);
+
             var uvBottomRight = glyph.UVPosition + glyph.UVSize;
 
-            _textVertices.Add(new(new(left, top), uvTopLeft, color));
-            _textVertices.Add(new(new(right, top), uvTopRight, color));
-            _textVertices.Add(new(new(left, bottom), uvBottomLeft, color));
+            vertices.Add(new(new(left, top), uvTopLeft, color));
+            vertices.Add(new(new(right, top), uvTopRight, color));
+            vertices.Add(new(new(left, bottom), uvBottomLeft, color));
 
-            _textVertices.Add(new(new(left, bottom), uvBottomLeft, color));
-            _textVertices.Add(new(new(right, top), uvTopRight, color));
-            _textVertices.Add(new(new(right, bottom), uvBottomRight, color));
+            vertices.Add(new(new(left, bottom), uvBottomLeft, color));
+            vertices.Add(new(new(right, top), uvTopRight, color));
+            vertices.Add(new(new(right, bottom), uvBottomRight, color));
 
             cursor.X += glyph.Advance * scale;
         }
-    }
-
-    public static void DrawTextCentered(string text, Vector2 position, Vector2 size, float scale, Vector4 color)
-    {
-        var textSize = MeasureText(text, scale);
-
-        float x = position.X + (size.X - textSize.X) / 2f;
-
-        float textHeight = (_font.Ascent - _font.Descent) * scale;
-
-        float baseline = position.Y + (size.Y - textHeight) / 2f + _font.Ascent * scale;
-
-        DrawText(text, new Vector2(x, baseline), scale, color);
     }
 
     public static Vector2 MeasureText(string text, float scale)
@@ -258,21 +309,93 @@ public static class UITextRenderer
         _screenSize = size;
 
         if (_textVertices.Count == 0)
+        {
+            _textBatches.Clear();
+            _batchStartVertex = 0;
+            _batchInitialized = false;
             return;
+        }
+
+        CaptureScissor();
+
+        int remaining = _textVertices.Count - _batchStartVertex;
+
+        if (remaining > 0)
+            _textBatches.Add(new TextBatch(_batchStartVertex, remaining, _activeScissor));
 
         commandBuffer.SetPipeline(_textPipeline);
         commandBuffer.SetTexture(_font.Atlas);
         commandBuffer.SetSampler(_textSampler);
 
         var data = MemoryMarshal.AsBytes(_textVertices.AsSpan());
-
         _textVertexBuffer.Upload(data);
 
-        commandBuffer.SetVertexBuffer(_textVertexBuffer, sizeof(float) * 8);
+        commandBuffer.SetVertexBuffer(_textVertexBuffer, (uint)Marshal.SizeOf<UITextVertex>());
 
-        commandBuffer.Draw((uint)_textVertices.Count);
+        foreach (TextBatch batch in _textBatches)
+        {
+            commandBuffer.SetScissor(batch.Scissor);
+            commandBuffer.Draw((uint)batch.VertexCount, firstVertex: (uint)batch.StartVertex);
+        }
 
         _textVertices.Clear();
+        _textBatches.Clear();
+        _batchStartVertex = 0;
+        _batchInitialized = false;
+    }
+
+    public static void RenderOverlay(ICommandBuffer commandBuffer, Vector2 size)
+    {
+        _screenSize = size;
+
+        if (_overlayVertices.Count == 0)
+            return;
+
+        commandBuffer.SetPipeline(_textPipeline);
+        commandBuffer.SetTexture(_font.Atlas);
+        commandBuffer.SetSampler(_textSampler);
+
+        var data = MemoryMarshal.AsBytes(_overlayVertices.AsSpan());
+        _textVertexBuffer.Upload(data);
+
+        commandBuffer.SetVertexBuffer(_textVertexBuffer, (uint)Marshal.SizeOf<UITextVertex>());
+
+        commandBuffer.SetScissor(new Scissor
+        {
+            X = 0,
+            Y = 0,
+            Width = (uint)size.X,
+            Height = (uint)size.Y
+        });
+
+        commandBuffer.Draw((uint)_overlayVertices.Count, firstVertex: 0);
+
+        _overlayVertices.Clear();
+    }
+
+    private static void CaptureScissor()
+    {
+        Scissor current = UIRenderer.CurrentScissor;
+
+        if (_batchInitialized &&
+            current.X == _activeScissor.X &&
+            current.Y == _activeScissor.Y &&
+            current.Width == _activeScissor.Width &&
+            current.Height == _activeScissor.Height)
+        {
+            return;
+        }
+
+        int count = _textVertices.Count - _batchStartVertex;
+
+        if (count > 0)
+        {
+            _textBatches.Add(new TextBatch(_batchStartVertex, count, _activeScissor));
+            _batchStartVertex = _textVertices.Count;
+        }
+
+        _activeScissor = current;
+        _batchInitialized = true;
     }
 
     public static void Dispose()

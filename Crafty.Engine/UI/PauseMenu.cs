@@ -35,6 +35,7 @@ public static class PauseMenu
 
     public static void Render(Vector2 currentWindowSize)
     {
+        UIRenderer.DrawRectangle(new(0, 0), currentWindowSize, new(0, 0, 0, 0.35f));
         var paneSize = _pane.Measure(currentWindowSize);
 
         _pane.Position = (currentWindowSize - paneSize) / 2f;

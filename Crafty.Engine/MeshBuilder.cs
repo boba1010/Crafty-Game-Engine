@@ -3,10 +3,12 @@ using Crafty.Engine.Core;
 using Crafty.Engine.Helpers;
 using Crafty.SDK.Client;
 using Crafty.SDK.Client.Blocks;
+using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.World;
 using System.Collections.Concurrent;
 using System.Numerics;
+using static Silk.NET.Core.Native.WinString;
 
 namespace Crafty.Engine;
 
@@ -33,6 +35,37 @@ public static class MeshBuilder
             Indices = [];
         }
     }
+
+    private static (float U0, float V0, float U1, float V1)[] CreateUVs((int X, int Y, int W, int H)[] faces)
+    {
+        var uv = new (float U0, float V0, float U1, float V1)[6];
+
+        for (int i = 0; i < 6; i++)
+        {
+            var (x, y, w, h) = faces[i];
+            uv[i] = (x / 64f, y / 64f, (x + w) / 64f, (y + h) / 64f);
+        }
+
+        return uv;
+    }
+
+    private static readonly (float U0, float V0, float U1, float V1)[] HeadUV =
+        CreateUVs([(8, 8, 8, 8), (24, 8, 8, 8), (0, 8, 8, 8), (16, 8, 8, 8), (8, 0, 8, 8), (16, 0, 8, 8)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] TorsoUV =
+        CreateUVs([(20, 20, 8, 12), (32, 20, 8, 12), (16, 20, 4, 12), (28, 20, 4, 12), (20, 16, 8, 4), (28, 16, 8, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] RightArmUV =
+        CreateUVs([(44, 20, 4, 12), (52, 20, 4, 12), (40, 20, 4, 12), (48, 20, 4, 12), (44, 16, 4, 4), (48, 16, 4, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] LeftArmUV =
+        CreateUVs([(36, 52, 4, 12), (44, 52, 4, 12), (32, 52, 4, 12), (40, 52, 4, 12), (36, 48, 4, 4), (40, 48, 4, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] RightLegUV =
+        CreateUVs([(4, 20, 4, 12), (12, 20, 4, 12), (0, 20, 4, 12), (8, 20, 4, 12), (4, 16, 4, 4), (8, 16, 4, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] LeftLegUV =
+        CreateUVs([(20, 52, 4, 12), (28, 52, 4, 12), (16, 52, 4, 12), (24, 52, 4, 12), (20, 48, 4, 4), (24, 48, 4, 4)]);
 
     // ------------------------------------------------------------------
     // Global atlas: built once, shared by every section, block icon and
@@ -146,10 +179,7 @@ public static class MeshBuilder
     // Section meshing
     // ------------------------------------------------------------------
 
-    public static SectionMeshes BuildSectionMesh(
-    World world,
-    int sectionX, int sectionY, int sectionZ,
-    int chunkX, int chunkZ)
+    public static SectionMeshes BuildSectionMesh(World world, int sectionX, int sectionY, int sectionZ, int chunkX, int chunkZ)
     {
         int startX = chunkX * Chunk.Size + sectionX * SectionCoordinate.SectionSize;
         int startY = sectionY * SectionCoordinate.SectionSize;
@@ -272,17 +302,12 @@ public static class MeshBuilder
     }
 
     private static void AddElementFace(
-    ref MeshData mesh,
-    int x, int y, int z,
-    Face face,
-    BlockElement element,
-    byte state,
-    ChunkTextureAtlas atlas,
-    float light = 1f,
-    World? aoWorld = null,
-    int worldX = 0,
-    int worldY = 0,
-    int worldZ = 0)
+        ref MeshData mesh,
+        int x, int y, int z,
+        Face face, BlockElement element,
+        byte state, ChunkTextureAtlas atlas,
+        float light = 1f, World? aoWorld = null,
+        int worldX = 0, int worldY = 0, int worldZ = 0)
     {
         var direction = ToBlockFaceDirection(face);
         var modelFace = GetModelFace(element, direction);
@@ -532,9 +557,7 @@ public static class MeshBuilder
         if (item.Texture is not { } texture)
             return new Mesh([], [], vertexStride: 24);
 
-        var atlas = ChunkTextureAtlasBuilder.Build(
-            new HashSet<string> { texture.Path },
-            32);
+        var atlas = ChunkTextureAtlasBuilder.Build(new HashSet<string> { texture.Path }, 32);
 
         var region = atlas.Get(texture.Path);
         var mesh = new MeshData();
@@ -583,85 +606,50 @@ public static class MeshBuilder
         List<float> vertices = [];
         List<uint> indices = [];
 
-        AddBox(vertices, indices, new(-0.25f, 1.5f, -0.25f), new(0.25f, 2.0f, 0.25f)); // Head
-        AddBox(vertices, indices, new(-0.25f, 0.75f, -0.125f), new(0.25f, 1.5f, 0.125f)); // Torso
-        AddBox(vertices, indices, new(-0.5f, 0.75f, -0.125f), new(-0.25f, 1.5f, 0.125f)); // Left arm
-        AddBox(vertices, indices, new(0.25f, 0.75f, -0.125f), new(0.5f, 1.5f, 0.125f)); // Right arm
-        AddBox(vertices, indices, new(-0.25f, 0.0f, -0.125f), new(0.0f, 0.75f, 0.125f)); // Left leg
-        AddBox(vertices, indices, new(0.0f, 0.0f, -0.125f), new(0.25f, 0.75f, 0.125f)); // Right leg
+        // Each AddBox call now needs six UV rectangles matching the skin layout.
+        AddBox(vertices, indices, new(-0.25f, 1.5f, -0.25f), new(0.25f, 2.0f, 0.25f), HeadUV);
+        AddBox(vertices, indices, new(-0.25f, 0.75f, -0.125f), new(0.25f, 1.5f, 0.125f), TorsoUV);
+        AddBox(vertices, indices, new(-0.5f, 0.75f, -0.125f), new(-0.25f, 1.5f, 0.125f), LeftArmUV);
+        AddBox(vertices, indices, new(0.25f, 0.75f, -0.125f), new(0.5f, 1.5f, 0.125f), RightArmUV);
+        AddBox(vertices, indices, new(-0.25f, 0.0f, -0.125f), new(0.0f, 0.75f, 0.125f), LeftLegUV);
+        AddBox(vertices, indices, new(0.0f, 0.0f, -0.125f), new(0.25f, 0.75f, 0.125f), RightLegUV);
 
-        var pixels = new byte[64 * 64];
-
-        return new(vertices, indices, new(pixels, 64, 64), 24);
+        var image = TextureLoader.Load(AssetRegistry.Get("default_skin"));
+        return new(vertices, indices, image, 24);
     }
 
     public static Mesh BuildPlayerHandMesh()
     {
-        var vertices = new List<float>();
-        var indices = new List<uint>();
+        List<float> vertices = [];
+        List<uint> indices = [];
 
-        // 0.25 x 0.25 cross-section, 0.75 long. Origin = shoulder end, arm extends forward (-Z).
-        AddBox(vertices, indices, new(-0.125f, -0.125f, -0.75f), new(0.125f, 0.125f, 0f));
+        AddBox(vertices, indices, new(-0.125f, -0.125f, -0.75f), new(0.125f, 0.125f, 0f), RightArmUV);
 
-        var pixels = new byte[64 * 64];
-
-        return new(vertices, indices, new(pixels, 64, 64), 24);
+        var image = TextureLoader.Load(AssetRegistry.Get("default_skin"));
+        return new(vertices, indices, image, 24);
     }
 
-    private static void AddBox(List<float> vertices, List<uint> indices, Vector3 min, Vector3 max)
+    private static void AddBox(
+        List<float> vertices, List<uint> indices, 
+        Vector3 min, Vector3 max, 
+        (float U0, float V0, float U1, float V1)[] uv)
     {
+        if (uv.Length != 6)
+            throw new ArgumentException("Exactly six UV rectangles are required.", nameof(uv));
+
         uint start = (uint)(vertices.Count / 6);
 
-        AddFace(
-            vertices,
-            min.X, min.Y, min.Z,
-            max.X, min.Y, min.Z,
-            max.X, max.Y, min.Z,
-            min.X, max.Y, min.Z);
-
-        AddFace(
-            vertices,
-            max.X, min.Y, max.Z,
-            min.X, min.Y, max.Z,
-            min.X, max.Y, max.Z,
-            max.X, max.Y, max.Z);
-
-        AddFace(
-            vertices,
-            min.X, min.Y, max.Z,
-            min.X, min.Y, min.Z,
-            min.X, max.Y, min.Z,
-            min.X, max.Y, max.Z);
-
-        AddFace(
-            vertices,
-            max.X, min.Y, min.Z,
-            max.X, min.Y, max.Z,
-            max.X, max.Y, max.Z,
-            max.X, max.Y, min.Z);
-
-        AddFace(
-            vertices,
-            min.X, max.Y, min.Z,
-            max.X, max.Y, min.Z,
-            max.X, max.Y, max.Z,
-            min.X, max.Y, max.Z);
-
-        AddFace(
-            vertices,
-            min.X, min.Y, max.Z,
-            max.X, min.Y, max.Z,
-            max.X, min.Y, min.Z,
-            min.X, min.Y, min.Z);
+        AddFace(vertices, min.X, min.Y, min.Z, max.X, min.Y, min.Z, max.X, max.Y, min.Z, min.X, max.Y, min.Z, uv[0].U0, uv[0].V0, uv[0].U1, uv[0].V1);
+        AddFace(vertices, max.X, min.Y, max.Z, min.X, min.Y, max.Z, min.X, max.Y, max.Z, max.X, max.Y, max.Z, uv[1].U0, uv[1].V0, uv[1].U1, uv[1].V1);
+        AddFace(vertices, min.X, min.Y, max.Z, min.X, min.Y, min.Z, min.X, max.Y, min.Z, min.X, max.Y, max.Z, uv[2].U0, uv[2].V0, uv[2].U1, uv[2].V1);
+        AddFace(vertices, max.X, min.Y, min.Z, max.X, min.Y, max.Z, max.X, max.Y, max.Z, max.X, max.Y, min.Z, uv[3].U0, uv[3].V0, uv[3].U1, uv[3].V1);
+        AddFace(vertices, min.X, max.Y, min.Z, max.X, max.Y, min.Z, max.X, max.Y, max.Z, min.X, max.Y, max.Z, uv[4].U0, uv[4].V0, uv[4].U1, uv[4].V1);
+        AddFace(vertices, min.X, min.Y, max.Z, max.X, min.Y, max.Z, max.X, min.Y, min.Z, min.X, min.Y, min.Z, uv[5].U0, uv[5].V0, uv[5].U1, uv[5].V1);
 
         for (uint face = 0; face < 6; face++)
         {
             uint offset = start + face * 4;
-
-            indices.AddRange([
-                offset + 0, offset + 1, offset + 2,
-                offset + 2, offset + 3, offset + 0
-            ]);
+            indices.AddRange([offset, offset + 1, offset + 2, offset + 2, offset + 3, offset]);
         }
     }
 
@@ -670,13 +658,14 @@ public static class MeshBuilder
         float x0, float y0, float z0,
         float x1, float y1, float z1,
         float x2, float y2, float z2,
-        float x3, float y3, float z3)
+        float x3, float y3, float z3,
+        float u0, float v0, float u1, float v1)
     {
         vertices.AddRange([
-            x0, y0, z0, 0f, 1f, 1f,
-            x1, y1, z1, 1f, 1f, 1f,
-            x2, y2, z2, 1f, 0f, 1f,
-            x3, y3, z3, 0f, 0f, 1f
+            x0, y0, z0, u0, v1, 1f,
+            x1, y1, z1, u1, v1, 1f,
+            x2, y2, z2, u1, v0, 1f,
+            x3, y3, z3, u0, v0, 1f
         ]);
     }
 

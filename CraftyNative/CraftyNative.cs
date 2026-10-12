@@ -500,6 +500,9 @@ public unsafe static class CraftyNative
         UIRenderer.Render(_commandBuffer, vector2Size);
         UITextRenderer.Render(_commandBuffer, vector2Size);
 
+        UIRenderer.RenderOverlay(_commandBuffer, vector2Size);
+        UITextRenderer.RenderOverlay(_commandBuffer, vector2Size);
+
         _commandBuffer.End();
 
         _swapchain.Present();

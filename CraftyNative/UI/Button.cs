@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace CraftyNative.UI;
 
