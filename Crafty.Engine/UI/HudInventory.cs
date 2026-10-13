@@ -43,7 +43,7 @@ public static class HudInventory
 
     private static readonly IInventoryLayout[] _layouts = [_inventoryPage, _creativeInventoryPage];
 
-    private static readonly Dictionary<string, TabPage> _tabs = [];
+    private static readonly Dictionary<string, (TabPage, Mesh?)> _tabs = [];
 
     private static readonly Grid _cursorHost = new()
     {
@@ -194,7 +194,7 @@ public static class HudInventory
     public static void AddTab(string name, string? description = null, Mesh? icon = null)
     {
         var tab = new TabPage();
-        _tabs.Add(name, tab);
+        _tabs.Add(name, (tab, icon));
         _root.AddTab(new TabItem(name, tab, icon, description));
     }
 
@@ -203,7 +203,7 @@ public static class HudInventory
         if (!_tabs.TryGetValue(tabName, out var tab))
             return;
 
-        tab.SetSlot(mesh, itemId);
+        tab.Item1.SetSlot(mesh, itemId);
     }
 
     public static void Initialize()
@@ -242,6 +242,17 @@ public static class HudInventory
 
         _root.Content = _globalViews;
         _root.AddTab(new TabItem("Inv", _inventoryPage, tooltipDescription: "Inventory"));
+
+        SystemAPI.Input.MouseWheel += Input_MouseWheel;
+    }
+
+    private static void Input_MouseWheel(float scroll)
+    {
+        if (!_isOpen || scroll == 0f)
+            return;
+
+        if (_frame.Page is TabPage tabPage)
+            tabPage.OnMouseWheel(InputManager.MousePosition, scroll);
     }
 
     public static void SetCreativeMode(bool creative)
@@ -252,6 +263,25 @@ public static class HudInventory
         // if the inventory tab is the one currently showing, swap it live
         if (_frame.Page is InventoryPage or CreativeInventoryPage)
             _frame.Page = page;
+
+        if (creative)
+        {
+            if (_tabs.Count > 0)
+                return;
+
+            foreach (var tab in _tabs)
+                _root.AddTab(new(tab.Key, tab.Value.Item1, tab.Value.Item2, tab.Key));
+        }
+        else
+        {
+            var tabs = _root.Tabs.ToArray();
+
+            for (int i = 1; i < tabs.Length; i++)
+            {
+                var tab = tabs[i];
+                _root.RemoveTab(tab);
+            }
+        }
     }
 
     private static void OnTabSelectionChanged(TabItem? sender)
@@ -295,15 +325,6 @@ public static class HudInventory
         _cursorHost.Measure(currentWindowSize);
         _cursorHost.Arrange(currentWindowSize);
         _cursorHost.Draw();
-    }
-
-    public static void OnMouseWheel(float delta)
-    {
-        if (!_isOpen || delta == 0f)
-            return;
-
-        if (_frame.Page is TabPage tab)
-            tab.Scroll(delta > 0f ? -1 : 1);
     }
 
     public static void Open() => _isOpen = true;

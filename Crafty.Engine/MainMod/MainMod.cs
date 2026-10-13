@@ -1,6 +1,5 @@
 ﻿using Crafty.SDK;
 using Crafty.SDK.Client;
-using Silk.NET.Core.Win32Extras;
 
 namespace Crafty.Engine.MainMod;
 

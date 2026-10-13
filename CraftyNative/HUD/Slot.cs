@@ -123,6 +123,20 @@ public sealed class Slot : UIElement
             UIRenderer.DrawRectangle(tipPos, tipSize, background);
 
             UITextRenderer.DrawTextCentered(ToolTip, tipPos, tipSize, scale, foreground);
+
+        }
+
+        if (Count > 1)
+        {
+            const float scale = 0.7f;
+            const float padding = 4f;
+
+            string text = Count.ToString();
+            Vector2 textSize = UITextRenderer.MeasureText(text, scale);
+
+            Vector2 textPosition = position + new Vector2(size.X - textSize.X - padding, size.Y - textSize.Y - padding);
+
+            UITextRenderer.DrawTextCentered(text, textPosition, textSize, scale, Vector4.One);
         }
     }
 }

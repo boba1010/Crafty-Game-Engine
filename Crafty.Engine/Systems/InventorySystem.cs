@@ -1,4 +1,5 @@
 ﻿using Crafty.Engine.Components;
+using Crafty.Engine.Core;
 using Crafty.Engine.UI;
 using CraftyNative;
 using CraftyNative.ECS;
@@ -9,22 +10,16 @@ namespace Crafty.Engine.Systems;
 
 public sealed class InventorySystem : IGameplaySystem
 {
-    // UI slot layout (same as HudInventory.SetSlot):
-    // 0-8 hotbar, 9-35 storage, 36-39 armor, 40-43 crafting grid, 44 crafting result.
     private const int SlotCount = 45;
-
-    /// <summary>Set once at startup: turns a stack into the mesh shown in the UI.</summary>
     public static Func<InventorySlot, Mesh?>? MeshResolver { get; set; }
-
-    /// <summary>Set once at startup: maps an item id to its block id (null if the item isn't a block).</summary>
     public static Func<uint, uint?>? BlockIdResolver { get; set; }
-
-    private readonly record struct UiChange(int Index, uint ItemId, int Count);
-
-    private readonly Queue<UiChange> _pending = new();
+    private readonly record struct UIChange(int Index, uint ItemId, int Count);
+    private readonly Queue<UIChange> _pending = new();
     private readonly (uint ItemId, int Count)[] _synced = new (uint, int)[SlotCount];
 
-    private bool _isOpen;
+    private static bool _isInserted;
+    private static bool _isCreative;
+    private static bool _isOpen;
 
     public InventorySystem()
     {
@@ -39,12 +34,13 @@ public sealed class InventorySystem : IGameplaySystem
 
         if (key == Key.E)
         {
-            if (_isOpen) CloseInventory(); else OpenInventory();
+            if (_isOpen) 
+                CloseInventory(); 
+            else 
+                OpenInventory();
         }
         else if (key == Key.Escape && GameStateManager.IsInventory)
-        {
             CloseInventory();
-        }
     }
 
     private void OpenInventory()
@@ -63,24 +59,46 @@ public sealed class InventorySystem : IGameplaySystem
         SystemAPI.Input.CursorMode = Cursor.Raw;
     }
 
+    private static uint[] GetItemsIds() => GameAPIs.ItemRegistry.GetAllIds();
+
     // ------------------------------------------------------------ update
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        var player = scene.GetEntitiesWith<Inventory>().FirstOrDefault();
-        if (!scene.HasComponent<Hotbar>(player))
+        InsertItems();
+
+        var playerObject = scene.GetEntitiesWith<Inventory>().FirstOrDefault();
+        if (!scene.HasComponent<Hotbar>(playerObject))
             return;
 
-        ref var inventory = ref scene.GetComponent<Inventory>(player);
-        ref var hotbar = ref scene.GetComponent<Hotbar>(player);
+        ref var inventory = ref scene.GetComponent<Inventory>(playerObject);
+        ref var hotbar = ref scene.GetComponent<Hotbar>(playerObject);
+        ref var player = ref scene.GetComponent<Player>(playerObject);
+
+        if (player.GameMode is GameMode.Creative)
+        {
+            if (!_isCreative)
+            {
+                if (!_isInserted)
+                    _isInserted = false;
+
+                _isCreative = true;
+            }
+            HudInventory.SetCreativeMode(true);
+        }
+        else
+        {
+            _isCreative = false;
+            HudInventory.SetCreativeMode(false);
+        }
 
         while (_pending.TryDequeue(out var change))
-            ApplyUiChange(ref inventory, ref hotbar, change);
+            ApplyUIChange(ref inventory, ref hotbar, change);
 
-        PushToUi(ref inventory, ref hotbar);
+        PushToUI(ref inventory, ref hotbar);
     }
 
-    private void ApplyUiChange(ref Inventory inventory, ref Hotbar hotbar, UiChange change)
+    private void ApplyUIChange(ref Inventory inventory, ref Hotbar hotbar, UIChange change)
     {
         ref var slot = ref SlotRef(ref inventory, ref hotbar, change.Index);
 
@@ -90,9 +108,7 @@ public sealed class InventorySystem : IGameplaySystem
             slot = new InventorySlot(change.ItemId, change.Count, blockId);
         }
         else
-        {
             slot = new InventorySlot(0, 0, null);
-        }
 
         // Inventory.Slots[0..8] mirrors the hotbar.
         if (change.Index < 9)
@@ -101,7 +117,7 @@ public sealed class InventorySystem : IGameplaySystem
         _synced[change.Index] = (slot.ItemId, slot.Count);
     }
 
-    private void PushToUi(ref Inventory inventory, ref Hotbar hotbar)
+    private void PushToUI(ref Inventory inventory, ref Hotbar hotbar)
     {
         for (int i = 0; i < SlotCount; i++)
         {
@@ -127,5 +143,26 @@ public sealed class InventorySystem : IGameplaySystem
         if (index < 36) return ref inventory.Slots[index];
         if (index < 40) return ref inventory.Armor[index - 36];
         return ref inventory.Crafting[index - 40];
+    }
+
+    private static void InsertItems()
+    {
+        if (_isInserted)
+            return;
+
+        var items = GetItemsIds();
+
+        for (int i = 0; i < items.Length; i++)
+        {
+            var itemId = items[i];
+            var item = GameAPIs.ItemRegistry.Get(itemId);
+            if (!string.IsNullOrEmpty(item.BlockId))
+            {
+                var blockId = GameAPIs.BlockRegistry.Get(item.BlockId);
+                HudInventory.SetItem("Blocks", MeshBuilder.BuildBlockMesh(blockId), itemId);
+            }
+        }
+
+        _isInserted = true;
     }
 }

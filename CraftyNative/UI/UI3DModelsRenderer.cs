@@ -7,19 +7,19 @@ namespace CraftyNative.UI;
 
 public static class UI3DModelsRenderer
 {
-    private readonly record struct MeshDrawCommand(Mesh Mesh, Vector2 Position, Vector3 Rotation, Vector3 Scale, Vector2 Size);
+    private readonly record struct MeshDrawCommand(Mesh Mesh, Vector2 Position, Vector3 Rotation, Vector3 Scale, Vector2 Size, Vector4 Clip);
 
     private static readonly List<MeshDrawCommand> _meshes = [];
     private static readonly Dictionary<Mesh, (Vector3 Center, float Scale)> _bounds = [];
 
-    public static void DrawMesh(Mesh mesh, Vector2 position, Vector3 rotation, Vector3 scale, Vector2 size)
+    public static void DrawMesh(Mesh mesh, Vector2 position, Vector3 rotation, Vector3 scale, Vector2 size, Vector4 clip)
     {
         ArgumentNullException.ThrowIfNull(mesh);
 
         if (size.X <= 0f || size.Y <= 0f || mesh.Vertices.Count == 0 || mesh.Indices.Count == 0)
             return;
 
-        _meshes.Add(new(mesh, position, rotation, scale, size));
+        _meshes.Add(new(mesh, position, rotation, scale, size, clip));
     }
 
     private static (Vector3 Center, float Scale) GetBounds(Mesh mesh)
@@ -94,7 +94,7 @@ public static class UI3DModelsRenderer
                 MaxDepth = 1f
             });
 
-            CraftyNative.DrawHudMesh(draw.Mesh, BuildMvp(draw.Mesh, draw.Size, draw.Rotation, draw.Scale));
+            CraftyNative.DrawHudMesh(draw.Mesh, BuildMvp(draw.Mesh, draw.Size, draw.Rotation, draw.Scale), draw.Clip);
         }
 
         commandBuffer.SetViewport(new Viewport

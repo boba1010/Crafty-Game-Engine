@@ -1,24 +1,49 @@
-﻿using CraftyNative.HUD;
+﻿using System.Numerics;
+using CraftyNative.HUD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.UI;
 
 namespace Crafty.Engine.UI.Inventory;
 
-/// <summary>
-/// Creative-style item palette: a fixed 9x5 grid of slots that shows a scrollable window over the tab's item list.
-/// </summary>
 public sealed class TabPage : Page
 {
     public const int Columns = 9;
     public const int Rows = 6;
     public const int PageSize = Columns * Rows;
-    
-    private readonly SlotGrid _slots = new()
-    {
-    };
 
+    private readonly SlotGrid _slots = new();
     private readonly List<(Mesh? Mesh, uint Id)> _items = [];
     private int _scrollRow;
+
+    private int TotalRows => (_items.Count + Columns - 1) / Columns;
+    private int MaxScrollRow => Math.Max(0, TotalRows - Rows);
+    private const float ScrollBarWidth = 6f;
+    private const float ScrollBarPadding = 4f;
+    private const float MinThumbHeight = 24f;
+
+    private bool _isDraggingScrollBar;
+    private float _dragStartY;
+    private float _dragStartThumbY;
+
+    private float ScrollTrackHeight => Math.Max(0f, ActualSize.Y - ScrollBarPadding * 2f);
+
+    private float ScrollThumbHeight
+    {
+        get
+        {
+            if (TotalRows == 0)
+                return ScrollTrackHeight;
+
+            float height = ScrollTrackHeight * Rows / (float)TotalRows;
+
+            return Math.Min(ScrollTrackHeight, Math.Max(MinThumbHeight, height));
+        }
+    }
+
+    private float ScrollThumbTravel => Math.Max(0f, ScrollTrackHeight - ScrollThumbHeight);
+
+    private float ScrollThumbY =>
+        ScrollBarPadding + (MaxScrollRow == 0 ? 0f : ScrollThumbTravel * _scrollRow / MaxScrollRow);
 
     public TabPage()
     {
@@ -28,16 +53,13 @@ public sealed class TabPage : Page
         HorizontalAlignment = HorizontalAlignment.Center;
     }
 
-    /// <summary>Total number of scrollable rows beyond the visible ones.</summary>
-    public int MaxScrollRow => Math.Max(0, (_items.Count + Columns - 1) / Columns - Rows);
-
     private void Initialize()
     {
         var root = new Grid()
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            BackgroundColor = System.Numerics.Vector4.Zero
+            VerticalAlignment = VerticalAlignment.Stretch,
+            BackgroundColor = Vector4.Zero
         };
 
         for (int i = 0; i < PageSize; i++)
@@ -61,44 +83,153 @@ public sealed class TabPage : Page
         Content = root;
     }
 
-    /// <summary>Adds an item to this tab. Clicking it hands a stack to the cursor.</summary>
     public void SetSlot(Mesh? mesh, uint itemId)
     {
         _items.Add((mesh, itemId));
-        Refresh();
+        RefreshSlots();
     }
 
-    /// <summary>Scrolls the palette by whole rows (negative = up, positive = down).</summary>
-    public void Scroll(int rows)
+    public bool OnMouseWheel(Vector2 cursor, float delta)
     {
-        int next = Math.Clamp(_scrollRow + rows, 0, MaxScrollRow);
-        if (next == _scrollRow)
-            return;
+        if (!IsVisible || delta == 0f || MaxScrollRow == 0)
+            return false;
 
-        _scrollRow = next;
-        Refresh();
+        Vector2 p = AbsolutePosition;
+        bool inside =
+            cursor.X >= p.X && cursor.X < p.X + ActualSize.X &&
+            cursor.Y >= p.Y && cursor.Y < p.Y + ActualSize.Y;
+
+        if (!inside)
+            return false;
+
+        int next = Math.Clamp(_scrollRow - Math.Sign(delta), 0, MaxScrollRow);
+
+        if (next != _scrollRow)
+        {
+            _scrollRow = next;
+            RefreshSlots();
+        }
+
+        return true;
     }
 
-    private void Refresh()
+    public void ResetScroll()
+    {
+        _scrollRow = 0;
+        RefreshSlots();
+    }
+
+    private void RefreshSlots()
     {
         _scrollRow = Math.Clamp(_scrollRow, 0, MaxScrollRow);
-        int start = _scrollRow * Columns;
+
+        int firstItem = _scrollRow * Columns;
 
         for (int i = 0; i < PageSize; i++)
         {
-            var slot = _slots.Children[i];
-            int itemIndex = start + i;
+            int itemIndex = firstItem + i;
+            Slot slot = _slots.Children[i];
 
             if (itemIndex < _items.Count)
             {
                 var (mesh, id) = _items[itemIndex];
                 SlotInteraction.Apply(slot, mesh, id, 1);
+                slot.IsVisible = true;
             }
             else
             {
                 SlotInteraction.Apply(slot, null, 0, 0);
+                slot.IsVisible = false;
             }
         }
+    }
+
+    public override void Draw()
+    {
+        base.Draw();
+        DrawScrollBar();
+    }
+
+    private void DrawScrollBar()
+    {
+        if (MaxScrollRow == 0)
+            return;
+
+        Vector2 position = AbsolutePosition;
+
+        float x = position.X + ActualSize.X - ScrollBarWidth;
+        float trackY = position.Y + ScrollBarPadding;
+        float thumbY = position.Y + ScrollThumbY;
+
+        UIRenderer.DrawRectangle(new(x, trackY), new(ScrollBarWidth, ScrollTrackHeight), new(0.15f, 0.15f, 0.15f, 0.7f));
+
+        UIRenderer.DrawRectangle(new(x, thumbY), new(ScrollBarWidth, ScrollThumbHeight), Styles.Accent);
+    }
+
+    private bool TryBeginScrollBarDrag(Vector2 cursor)
+    {
+        if (MaxScrollRow == 0)
+            return false;
+
+        Vector2 position = AbsolutePosition;
+
+        float thumbX = position.X + ActualSize.X - ScrollBarWidth;
+        float thumbY = position.Y + ScrollThumbY;
+
+        bool insideThumb =
+            cursor.X >= thumbX &&
+            cursor.X <= thumbX + ScrollBarWidth &&
+            cursor.Y >= thumbY &&
+            cursor.Y <= thumbY + ScrollThumbHeight;
+
+        if (!insideThumb)
+            return false;
+
+        _isDraggingScrollBar = true;
+        _dragStartY = cursor.Y;
+        _dragStartThumbY = ScrollThumbY;
+
+        return true;
+    }
+
+    private void UpdateScrollBarDrag(Vector2 cursor)
+    {
+        if (!_isDraggingScrollBar || ScrollThumbTravel <= 0f)
+            return;
+
+        float delta = cursor.Y - _dragStartY;
+
+        float thumbY = Math.Clamp(
+            _dragStartThumbY + delta,
+            ScrollBarPadding,
+            ScrollBarPadding + ScrollThumbTravel);
+
+        float progress = (thumbY - ScrollBarPadding) / ScrollThumbTravel;
+
+        _scrollRow = (int)MathF.Round(progress * MaxScrollRow);
+
+        RefreshSlots();
+    }
+
+    public override void Update(Vector2 cursorPosition, Vector2 windowSize, bool mousePressed)
+    {
+        if (!IsVisible)
+            return;
+
+        if (_isDraggingScrollBar)
+        {
+            if (mousePressed)
+                UpdateScrollBarDrag(cursorPosition);
+            else
+                _isDraggingScrollBar = false;
+
+            return;
+        }
+
+        if (mousePressed && TryBeginScrollBarDrag(cursorPosition))
+            return;
+
+        base.Update(cursorPosition, windowSize, mousePressed);
     }
 
     private void OnSlotClick(Slot sender) => SlotInteraction.OnCreativeClick(sender);

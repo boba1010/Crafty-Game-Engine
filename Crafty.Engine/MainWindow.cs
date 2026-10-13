@@ -113,9 +113,8 @@ public sealed class MainWindow : Window
         HudHotbar.Initialize();
         HudInventory.Initialize();
 
-        HudInventory.AddTab("Natural Blocks", null, MeshBuilder.BuildBlockMesh(1));
-        HudInventory.SetItem("Natural Blocks", MeshBuilder.BuildBlockMesh(1), 1);
-
+        HudInventory.AddTab("Blocks", "Blocks", MeshBuilder.BuildBlockMesh(1));
+        
         _camera = _gameWorld.Scene.CreateObject();
         var playerModel = BuildPlayer();
         _player = _gameWorld.Scene.CreateObject();
@@ -163,7 +162,17 @@ public sealed class MainWindow : Window
                 meshCache[block] = mesh = MeshBuilder.BuildBlockMesh(block);
             return mesh;
         };
-        InventorySystem.BlockIdResolver = itemId => itemId;
+        InventorySystem.BlockIdResolver = itemId =>
+        {
+            var item = GameAPIs.ItemRegistry.Get(itemId);
+            if (!string.IsNullOrEmpty(item.BlockId))
+            {
+                var blockId = GameAPIs.BlockRegistry.Get(item.BlockId);
+                return blockId;
+            }
+
+            return 0;
+        };
 
         _gameWorld.Scene.Systems.Add(new InventorySystem());
         _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));

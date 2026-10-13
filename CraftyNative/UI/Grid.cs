@@ -1,5 +1,4 @@
-﻿
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace CraftyNative.UI;
 
@@ -62,8 +61,7 @@ public sealed class Grid : UIElement
 
         child.Parent = this;
 
-        _children.Add(new ChildEntry(
-            child, row, column, rowSpan, columnSpan));
+        _children.Add(new ChildEntry(child, row, column, rowSpan, columnSpan));
     }
 
     public bool Remove(UIElement child)

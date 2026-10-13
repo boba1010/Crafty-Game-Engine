@@ -6,6 +6,7 @@ public interface IBlockRegistry
 {
     public void Register(BlockCategory category, Block block);
     Block Get(uint id);
+    uint Get(string id);
     uint[] GetAllIds();
     Block[] All { get; }
 }

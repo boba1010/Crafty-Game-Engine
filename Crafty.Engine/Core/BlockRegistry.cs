@@ -6,6 +6,7 @@ namespace Crafty.Engine.Core;
 public sealed class BlockRegistry : IBlockRegistry
 {
     private static readonly Dictionary<uint, Block> _blocks = [];
+    private static readonly Dictionary<string, uint> _blocksIds = [];
     private readonly Dictionary<BlockCategory, uint> _nextIds = new()
     {
         [BlockCategory.Nature] = 0,
@@ -27,6 +28,14 @@ public sealed class BlockRegistry : IBlockRegistry
         return item;
     }
 
+    public uint Get(string id)
+    {
+        if (!_blocksIds.TryGetValue(id, out var item))
+            throw new KeyNotFoundException($"block ID {id} is not registered.");
+
+        return item;
+    }
+
     public uint[] GetAllIds()
     {
         return [.. _blocks.Keys];
@@ -35,7 +44,7 @@ public sealed class BlockRegistry : IBlockRegistry
     public void Register(BlockCategory category, Block block)
     {
         var id = _nextIds[category]++;
-
         _blocks.Add(id, block);
+        _blocksIds.Add(block.Id, id);
     }
 }

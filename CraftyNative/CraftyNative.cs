@@ -157,7 +157,8 @@ public unsafe static class CraftyNative
             row_major matrix MVP;
             float Daylight;
             float Moonlight;
-            float3 Padding;
+            float2 Padding;
+            float4 ClipRect;
         };
 
         VSOutput VSMain(VSInput input)
@@ -174,6 +175,12 @@ public unsafe static class CraftyNative
 
         float4 PSMain(VSOutput input) : SV_Target
         {
+            clip(float4(
+                input.Position.x - ClipRect.x,
+                input.Position.y - ClipRect.y,
+                ClipRect.z - input.Position.x,
+                ClipRect.w - input.Position.y));
+
             float4 color = Texture.Sample(Sampler, input.UV);
             clip(color.a - 0.5f);
 
@@ -185,6 +192,12 @@ public unsafe static class CraftyNative
 
         float4 PSMainTranslucent(VSOutput input) : SV_Target
         {
+            clip(float4(
+                input.Position.x - ClipRect.x,
+                input.Position.y - ClipRect.y,
+                ClipRect.z - input.Position.x,
+                ClipRect.w - input.Position.y));
+
             float4 color = Texture.Sample(Sampler, input.UV);
             clip(color.a - 0.004f);
 
@@ -254,7 +267,8 @@ public unsafe static class CraftyNative
             CullMode = CullMode.None,
             FrontFace = FrontFace.CounterClockwise,
             FillMode = FillMode.Solid,
-            DepthClipEnable = true
+            DepthClipEnable = true,
+            ScissorEnable = true
         });
 
         // ---- opaque / cutout ----
@@ -299,6 +313,7 @@ public unsafe static class CraftyNative
             FrontFace = FrontFace.CounterClockwise,
             FillMode = FillMode.Solid,
             DepthClipEnable = true,
+            ScissorEnable = true
         });
 
         _translucentDepthState = Device.CreateDepthStencilState(new()
@@ -316,12 +331,12 @@ public unsafe static class CraftyNative
             PrimitiveTopology = PrimitiveTopology.TriangleList,
             Rasterizer = _translucentRasterizerState,
             DepthStencil = _translucentDepthState,
-            Blend = _alphaBlendState
+            Blend = _alphaBlendState,
         });
 
         _constantBuffer = Device.CreateBuffer(new()
         {
-            Size = 80,
+            Size = 96,
             Usage = BufferUsage.Uniform,
             MemoryUsage = MemoryUsage.Upload
         });
@@ -447,7 +462,7 @@ public unsafe static class CraftyNative
                 continue;
 
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
-            DrawMesh(mesh, model * view * projection);
+            DrawMesh(mesh, model * view * projection, clip: new Vector4(0, 0, size.X, size.Y));
         }
 
         foreach (var (objectId, renderable) in scene.Renderables)
@@ -462,7 +477,7 @@ public unsafe static class CraftyNative
                 Matrix4x4.CreateTranslation(transform.Position);
 
             if (renderable.ShouldRender)
-                DrawMesh(renderable.Mesh, model * view * projection);
+                DrawMesh(renderable.Mesh, model * view * projection, clip: new Vector4(0, 0, size.X, size.Y));
         }
 
         // ---- Pass 2: translucent sections (glass, ice), far to near ----
@@ -490,11 +505,13 @@ public unsafe static class CraftyNative
             {
                 var section = visibleSections[index]!;
                 var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
-                DrawMesh(section.TranslucentMesh, model * view * projection);
+                DrawMesh(section.TranslucentMesh, model * view * projection, clip: new Vector4(0, 0, size.X, size.Y));
             }
         }
 
         Vector2 vector2Size = new(size.X, size.Y);
+
+        UIRenderer.BeginFrame(vector2Size);
 
         HudRenderer.Render(_commandBuffer, vector2Size);
         UIRenderer.Render(_commandBuffer, vector2Size);
@@ -508,7 +525,7 @@ public unsafe static class CraftyNative
         _swapchain.Present();
     }
 
-    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, bool applyWorldLighting = true)
+    private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, bool applyWorldLighting = true, Vector4? clip = null)
     {
         var gpuMesh = GetOrCreateMesh(mesh);
         if (mesh.IsDirty)
@@ -517,7 +534,7 @@ public unsafe static class CraftyNative
             mesh.ClearDirty();
         }
 
-        Span<byte> data = stackalloc byte[80];
+        Span<byte> data = stackalloc byte[96];
         data.Clear();
 
         MemoryMarshal.Write(data, in mvp);
@@ -527,6 +544,9 @@ public unsafe static class CraftyNative
 
         float moonlight = applyWorldLighting ? Moonlight : 0f;
         MemoryMarshal.Write(data[68..], in moonlight);
+
+        Vector4 clipRect = clip ?? new Vector4(0, 0, 100000f, 100000f);
+        MemoryMarshal.Write(data[80..], in clipRect);
 
         _constantBuffer.Upload(data);
 
@@ -557,10 +577,10 @@ public unsafe static class CraftyNative
         gpuMesh.VertexBuffer.Upload(data);
     }
 
-    internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp)
+    internal static void DrawHudMesh(Mesh mesh, Matrix4x4 mvp, Vector4 clip)
     {
         _commandBuffer.SetPipeline(_pipeline);
-        DrawMesh(mesh, mvp, false);
+        DrawMesh(mesh, mvp, false, clip);
     }
 
     public static void Dispose()

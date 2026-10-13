@@ -1,16 +1,17 @@
-﻿
-using CraftyNative.ThreeD.Meshes;
+﻿using CraftyNative.ThreeD.Meshes;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Vulcan;
 using Vulcan.Graphics;
 
+
 namespace CraftyNative.UI;
 
-public struct UIVertex(Vector2 position, Vector4 color)
+public struct UIVertex(Vector2 position, Vector4 color, Vector4 clip)
 {
     public Vector2 Position = position;
     public Vector4 Color = color;
+    public Vector4 Clip = clip;
 }
 
 public static class UIRenderer
@@ -18,9 +19,7 @@ public static class UIRenderer
     public static bool IsClipEmpty => GetActiveClip().IsEmpty;
 
     public static Scissor CurrentScissor =>
-        _clipInitialized
-            ? _activeScissor
-            : CreateScissor(new ClipRect(0, 0, _screenSize.X, _screenSize.Y));
+        _clipInitialized ? _activeScissor : CreateScissor(new ClipRect(0, 0, _screenSize.X, _screenSize.Y));
 
     private static IBuffer _vertexBuffer = null!;
     private static IShader _vertexShader = null!;
@@ -66,6 +65,14 @@ public static class UIRenderer
     private static Scissor _activeScissor;
     private static bool _clipInitialized;
 
+    private static Vector4 ActiveClipVector()
+    {
+        ClipRect c = GetActiveClip();
+        return new Vector4(c.X, c.Y, c.Right, c.Bottom);
+    }
+
+    public static Vector4 CurrentClipRect => ActiveClipVector();
+
     public static void Initialize(IGraphicsDevice device)
     {
         _device = device;
@@ -75,12 +82,14 @@ public static class UIRenderer
         {
             float2 Position : POSITION;
             float4 Color : COLOR;
+            float4 Clip : TEXCOORD0;
         };
 
         struct VSOutput
         {
             float4 Position : SV_Position;
             float4 Color : COLOR;
+            nointerpolation float4 Clip : TEXCOORD0;
         };
 
         VSOutput VSMain(VSInput input)
@@ -88,20 +97,25 @@ public static class UIRenderer
             VSOutput output;
             output.Position = float4(input.Position, 0.0, 1.0);
             output.Color = input.Color;
+            output.Clip = input.Clip;
             return output;
         }
 
         float4 PSMain(VSOutput input) : SV_Target
         {
+            clip(float4(
+                input.Position.x - input.Clip.x,
+                input.Position.y - input.Clip.y,
+                input.Clip.z - input.Position.x,
+                input.Clip.w - input.Position.y));
+
             return input.Color;
         }
         """;
 
-        var vertexShaderCode =
-            Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
+        var vertexShaderCode = Shaders.CompileShader(shaderSource, "VSMain", "vs_5_0");
 
-        var fragmentShaderCode =
-            Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
+        var fragmentShaderCode = Shaders.CompileShader(shaderSource, "PSMain", "ps_5_0");
 
         _vertexShader = device.CreateShader(new()
         {
@@ -142,6 +156,13 @@ public static class UIRenderer
                     Location = 0,
                     Format = TextureFormat.R32G32B32A32Float,
                     Offset = 8
+                },
+                new()
+                {
+                    Semantic = "TEXCOORD",
+                    Location = 0,
+                    Format = TextureFormat.R32G32B32A32Float,
+                    Offset = 24
                 }
             }
         });
@@ -218,22 +239,23 @@ public static class UIRenderer
 
     private static void AppendRectangle(List<UIVertex> vertices, Vector2 position, Vector2 size, Vector4 color)
     {
-        if (size.X <= 0 || size.Y <= 0 ||
-            _screenSize.X <= 0 || _screenSize.Y <= 0)
+        if (size.X <= 0 || size.Y <= 0 || _screenSize.X <= 0 || _screenSize.Y <= 0)
             return;
+
+        Vector4 clip = ReferenceEquals(vertices, _overlayVertices) ? new(0, 0, _screenSize.X, _screenSize.Y) : ActiveClipVector();
 
         float left = position.X / _screenSize.X * 2f - 1f;
         float right = (position.X + size.X) / _screenSize.X * 2f - 1f;
         float top = 1f - position.Y / _screenSize.Y * 2f;
         float bottom = 1f - (position.Y + size.Y) / _screenSize.Y * 2f;
 
-        vertices.Add(new(new(left, top), color));
-        vertices.Add(new(new(right, top), color));
-        vertices.Add(new(new(left, bottom), color));
+        vertices.Add(new(new(left, top), color, clip));
+        vertices.Add(new(new(right, top), color, clip));
+        vertices.Add(new(new(left, bottom), color, clip));
 
-        vertices.Add(new(new(left, bottom), color));
-        vertices.Add(new(new(right, top), color));
-        vertices.Add(new(new(right, bottom), color));
+        vertices.Add(new(new(left, bottom), color, clip));
+        vertices.Add(new(new(right, top), color, clip));
+        vertices.Add(new(new(right, bottom), color, clip));
     }
 
     public static void DrawRoundedRectangle(Vector2 position, Vector2 size, float radius, Vector4 color)
@@ -248,9 +270,10 @@ public static class UIRenderer
 
     private static void AppendRoundedRectangle(List<UIVertex> vertices, Vector2 position, Vector2 size, float radius, Vector4 color)
     {
-        if (size.X <= 0 || size.Y <= 0 ||
-            _screenSize.X <= 0 || _screenSize.Y <= 0)
+        if (size.X <= 0 || size.Y <= 0 || _screenSize.X <= 0 || _screenSize.Y <= 0)
             return;
+
+        Vector4 clip = ReferenceEquals(vertices, _overlayVertices) ? new(0, 0, _screenSize.X, _screenSize.Y) : ActiveClipVector();
 
         radius = Math.Clamp(radius, 0f, MathF.Min(size.X, size.Y) * 0.5f);
 
@@ -294,9 +317,9 @@ public static class UIRenderer
             Vector2 a = ToClip(points[i]);
             Vector2 b = ToClip(points[(i + 1) % pointCount]);
 
-            vertices.Add(new(clipCenter, color));
-            vertices.Add(new(a, color));
-            vertices.Add(new(b, color));
+            vertices.Add(new(clipCenter, color, clip));
+            vertices.Add(new(a, color, clip));
+            vertices.Add(new(b, color, clip));
         }
     }
 
@@ -312,9 +335,10 @@ public static class UIRenderer
 
     private static void AppendRoundedBorder(List<UIVertex> vertices, Vector2 position, Vector2 size, float radius, float thickness, Vector4 color)
     {
-        if (size.X <= 0 || size.Y <= 0 || thickness <= 0 ||
-            _screenSize.X <= 0 || _screenSize.Y <= 0)
+        if (size.X <= 0 || size.Y <= 0 || thickness <= 0 || _screenSize.X <= 0 || _screenSize.Y <= 0)
             return;
+
+        Vector4 clip = ReferenceEquals(vertices, _overlayVertices) ? new(0, 0, _screenSize.X, _screenSize.Y) : ActiveClipVector();
 
         radius = Math.Clamp(radius, 0f, MathF.Min(size.X, size.Y) * 0.5f);
         thickness = MathF.Min(thickness, MathF.Min(size.X, size.Y) * 0.5f);
@@ -375,13 +399,13 @@ public static class UIRenderer
             Vector2 innerA = ToClip(inner[i]);
             Vector2 innerB = ToClip(inner[next]);
 
-            vertices.Add(new(outerA, color));
-            vertices.Add(new(innerA, color));
-            vertices.Add(new(outerB, color));
+            vertices.Add(new(outerA, color, clip));
+            vertices.Add(new(innerA, color, clip));
+            vertices.Add(new(outerB, color, clip));
 
-            vertices.Add(new(outerB, color));
-            vertices.Add(new(innerA, color));
-            vertices.Add(new(innerB, color));
+            vertices.Add(new(outerB, color, clip));
+            vertices.Add(new(innerA, color, clip));
+            vertices.Add(new(innerB, color, clip));
         }
     }
 
@@ -394,7 +418,6 @@ public static class UIRenderer
         if (!_clipInitialized)
         {
             _activeScissor = CreateScissor(new ClipRect(0, 0, size.X, size.Y));
-
             _clipInitialized = true;
         }
 
@@ -423,6 +446,21 @@ public static class UIRenderer
 
         _batchStartVertex = 0;
         _clipInitialized = false;
+
+        _vertices.Clear();
+        _batches.Clear();
+        _clipStack.Clear();
+
+        _batchStartVertex = 0;
+        _clipInitialized = false;
+
+        commandBuffer.SetScissor(new Scissor
+        {
+            X = 0,
+            Y = 0,
+            Width = (uint)size.X,
+            Height = (uint)size.Y
+        });
 
         UI3DModelsRenderer.Render(commandBuffer, size);
     }
@@ -457,10 +495,10 @@ public static class UIRenderer
 
     public static void DrawMesh(Mesh mesh, Vector2 position, Vector3 rotation, Vector3 scale, Vector2 size)
     {
-        if (size.X <= 0 || size.Y <= 0)
+        if (size.X <= 0 || size.Y <= 0 || IsClipEmpty)
             return;
 
-        UI3DModelsRenderer.DrawMesh(mesh, position, rotation, scale, size);
+        UI3DModelsRenderer.DrawMesh(mesh, position, rotation, scale, size, CurrentClipRect);
     }
 
     private static Scissor CreateScissor(ClipRect rect)
@@ -535,6 +573,18 @@ public static class UIRenderer
 
         _clipStack.Pop();
         UpdateActiveScissor();
+    }
+
+    public static void BeginFrame(Vector2 size)
+    {
+        _screenSize = size;
+        _clipStack.Clear();
+        _batches.Clear();
+        _batchStartVertex = 0;
+
+        _activeScissor = CreateScissor(new ClipRect(0, 0, size.X, size.Y));
+
+        _clipInitialized = true;
     }
 
     public static void Dispose()

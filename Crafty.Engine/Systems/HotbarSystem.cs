@@ -72,7 +72,8 @@ public sealed class HotbarSystem : IGameplaySystem
 
             for (int i = 0; i < SlotCount; i++)
             {
-                ushort? blockId = hotbar.Slots[i].BlockId is { } id ? (ushort)id : null;
+                var slot = hotbar.Slots[i];
+                ushort? blockId = slot.BlockId is { } id ? (ushort)id : null;
 
                 if (blockId == _shownBlocks[i])
                     continue;
@@ -80,9 +81,9 @@ public sealed class HotbarSystem : IGameplaySystem
                 _shownBlocks[i] = blockId;
 
                 if (blockId is ushort block)
-                    HudHotbar.SetSlot(i, GetBlockMesh(block));
+                    HudHotbar.SetSlot(i, GetBlockMesh(block), slot.Count);
                 else
-                    HudHotbar.SetSlot(i, null);
+                    HudHotbar.SetSlot(i, null, slot.Count);
             }
         }
     }
