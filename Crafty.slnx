@@ -1,6 +1,6 @@
 <Solution>
   <Project Path="Crafty.ChunkGeneration\Crafty.ChunkGeneration.csproj" />
-  <Project Path="Crafty.Engine/Crafty.Engine.csproj" />
+  <Project Path="Crafty/Crafty.csproj" />
   <Project Path="Crafty.GameManagement\Crafty.GameManagement.csproj" />
   <Project Path="Crafty.InstancesManager\Crafty.InstancesManager.csproj" />
   <Project Path="Crafty.MDK\Crafty.MDK.csproj" />

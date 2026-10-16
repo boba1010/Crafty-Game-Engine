@@ -1,0 +1,711 @@
+﻿using Crafty.ChunkGeneration.World;
+using Crafty.Core;
+using Crafty.Helpers;
+using Crafty.SDK.Client;
+using Crafty.SDK.Client.Blocks;
+using CraftyNative.ThreeD;
+using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ThreeD.World;
+using System.Collections.Concurrent;
+using System.Numerics;
+
+namespace Crafty;
+
+public static class MeshBuilder
+{
+    private enum Face
+    {
+        Left,
+        Right,
+        Bottom,
+        Top,
+        Front,
+        Back
+    }
+
+    private struct MeshData
+    {
+        public List<float> Vertices;
+        public List<uint> Indices;
+
+        public MeshData()
+        {
+            Vertices = [];
+            Indices = [];
+        }
+    }
+
+    private static (float U0, float V0, float U1, float V1)[] CreateUVs((int X, int Y, int W, int H)[] faces)
+    {
+        var uv = new (float U0, float V0, float U1, float V1)[6];
+
+        for (int i = 0; i < 6; i++)
+        {
+            var (x, y, w, h) = faces[i];
+            uv[i] = (x / 64f, y / 64f, (x + w) / 64f, (y + h) / 64f);
+        }
+
+        return uv;
+    }
+
+    private static readonly (float U0, float V0, float U1, float V1)[] HeadUV =
+        CreateUVs([(8, 8, 8, 8), (24, 8, 8, 8), (0, 8, 8, 8), (16, 8, 8, 8), (8, 0, 8, 8), (16, 0, 8, 8)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] TorsoUV =
+        CreateUVs([(20, 20, 8, 12), (32, 20, 8, 12), (16, 20, 4, 12), (28, 20, 4, 12), (20, 16, 8, 4), (28, 16, 8, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] RightArmUV =
+        CreateUVs([(44, 20, 4, 12), (52, 20, 4, 12), (40, 20, 4, 12), (48, 20, 4, 12), (44, 16, 4, 4), (48, 16, 4, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] LeftArmUV =
+        CreateUVs([(36, 52, 4, 12), (44, 52, 4, 12), (32, 52, 4, 12), (40, 52, 4, 12), (36, 48, 4, 4), (40, 48, 4, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] RightLegUV =
+        CreateUVs([(4, 20, 4, 12), (12, 20, 4, 12), (0, 20, 4, 12), (8, 20, 4, 12), (4, 16, 4, 4), (8, 16, 4, 4)]);
+
+    private static readonly (float U0, float V0, float U1, float V1)[] LeftLegUV =
+        CreateUVs([(20, 52, 4, 12), (28, 52, 4, 12), (16, 52, 4, 12), (24, 52, 4, 12), (20, 48, 4, 4), (24, 48, 4, 4)]);
+
+    // ------------------------------------------------------------------
+    // Global atlas: built once, shared by every section, block icon and
+    // therefore by exactly one GPU material.
+    // ------------------------------------------------------------------
+
+    private static ChunkTextureAtlas? _atlas;
+    private static readonly object _atlasLock = new();
+
+    public static ChunkTextureAtlas GlobalAtlas
+    {
+        get
+        {
+            if (_atlas is { } existing)
+                return existing;
+
+            lock (_atlasLock)
+                return _atlas ??= BuildGlobalAtlas();
+        }
+    }
+
+    private static ChunkTextureAtlas BuildGlobalAtlas()
+    {
+        var textures = new HashSet<string>();
+
+        foreach (var block in GameAPIs.BlockRegistry.All)
+            foreach (var element in block.Model.Elements)
+                foreach (var face in element.Faces)
+                    textures.Add(face.Texture);
+
+        return ChunkTextureAtlasBuilder.Build(textures, 32);
+    }
+
+    // ------------------------------------------------------------------
+    // Per-block render info (cached: the world calls this a lot)
+    // ------------------------------------------------------------------
+
+    private static readonly ConcurrentDictionary<uint, (bool Opaque, bool Translucent)> _renderInfo = new();
+
+    private static (bool Opaque, bool Translucent) RenderInfo(uint id)
+    {
+        if (id == 0)
+            return (false, false);
+
+        return _renderInfo.GetOrAdd(id, static blockId =>
+        {
+            var properties = GameAPIs.BlockRegistry.Get(blockId).Properties;
+            return (properties.Opaque, properties.Transparent);
+        });
+    }
+
+    /// <summary>
+    /// Should the face of block <paramref name="selfId"/> that touches
+    /// <paramref name="neighborId"/> be drawn?
+    /// </summary>
+    private static bool ShouldDrawFace(uint selfId, uint neighborId, bool isTransparent)
+    {
+        if (neighborId == 0)
+            return true;
+
+        if (isTransparent)
+            return true;
+
+        if (!RenderInfo(neighborId).Opaque)
+            return selfId != neighborId;
+
+        return false;
+    }
+
+    // ------------------------------------------------------------------
+    // Lighting
+    // ------------------------------------------------------------------
+
+    private static float GetBrightness(World world, int x, int y, int z)
+    {
+        const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
+
+        if (y < 0)
+            return 0f;
+
+        if (y >= worldHeight)
+            return 1f;
+
+        int chunkX = Math.DivRem(x, Chunk.Size, out int localX);
+        int chunkZ = Math.DivRem(z, Chunk.Size, out int localZ);
+
+        if (localX < 0)
+        {
+            chunkX--;
+            localX += Chunk.Size;
+        }
+
+        if (localZ < 0)
+        {
+            chunkZ--;
+            localZ += Chunk.Size;
+        }
+
+        var chunk = world.GetChunk(chunkX, chunkZ);
+
+        if (chunk is null)
+            return 0f;
+
+        byte skyLight = chunk.GetSkyLight(localX, y, localZ);
+        byte blockLight = chunk.GetBlockLight(localX, y, localZ);
+
+        return Math.Max(skyLight, blockLight) / 15f;
+    }
+
+    // ------------------------------------------------------------------
+    // Section meshing
+    // ------------------------------------------------------------------
+
+    public static SectionMeshes BuildSectionMesh(World world, int sectionX, int sectionY, int sectionZ, int chunkX, int chunkZ)
+    {
+        int startX = chunkX * Chunk.Size + sectionX * SectionCoordinate.SectionSize;
+        int startY = sectionY * SectionCoordinate.SectionSize;
+        int startZ = chunkZ * Chunk.Size + sectionZ * SectionCoordinate.SectionSize;
+
+        int endX = startX + SectionCoordinate.SectionSize;
+        int endY = startY + SectionCoordinate.SectionSize;
+        int endZ = startZ + SectionCoordinate.SectionSize;
+
+        var atlas = GlobalAtlas;
+        var opaque = new MeshData();
+        var translucent = new MeshData();
+
+        for (int x = startX; x < endX; x++)
+        {
+            for (int z = startZ; z < endZ; z++)
+            {
+                for (int y = startY; y < endY; y++)
+                {
+                    var block = world.GetBlock(x, y, z);
+
+                    if (block.Id == 0)
+                        continue;
+
+                    var blockDef = GameAPIs.BlockRegistry.Get(block.Id);
+                    var model = blockDef.Model;
+
+                    int localX = x - startX;
+                    int localY = y - startY;
+                    int localZ = z - startZ;
+
+                    ref var target = ref (
+                        RenderInfo(block.Id).Translucent
+                            ? ref translucent
+                            : ref opaque);
+
+                    foreach (var element in model.Elements)
+                    {
+                        if (ShouldDrawFace(
+                            block.Id, world.GetBlock(x - 1, y, z).Id,
+                            blockDef.Properties.Transparent))
+                        {
+                            AddElementFace(
+                                ref target, localX, localY, localZ,
+                                Face.Left, element, block.State, atlas,
+                                GetBrightness(world, x - 1, y, z) * 0.8f,
+                                world, x, y, z);
+                        }
+
+                        if (ShouldDrawFace(
+                            block.Id, world.GetBlock(x + 1, y, z).Id,
+                            blockDef.Properties.Transparent))
+                        {
+                            AddElementFace(
+                                ref target, localX, localY, localZ,
+                                Face.Right, element, block.State, atlas,
+                                GetBrightness(world, x + 1, y, z) * 0.8f,
+                                world, x, y, z);
+                        }
+
+                        if (y == 0 || ShouldDrawFace(
+                            block.Id, world.GetBlock(x, y - 1, z).Id,
+                            blockDef.Properties.Transparent))
+                        {
+                            AddElementFace(
+                                ref target, localX, localY, localZ,
+                                Face.Bottom, element, block.State, atlas,
+                                GetBrightness(world, x, y - 1, z) * 0.5f,
+                                world, x, y, z);
+                        }
+
+                        if (ShouldDrawFace(
+                            block.Id, world.GetBlock(x, y + 1, z).Id,
+                            blockDef.Properties.Transparent))
+                        {
+                            AddElementFace(
+                                ref target, localX, localY, localZ,
+                                Face.Top, element, block.State, atlas,
+                                GetBrightness(world, x, y + 1, z),
+                                world, x, y, z);
+                        }
+
+                        if (ShouldDrawFace(
+                            block.Id, world.GetBlock(x, y, z - 1).Id,
+                            blockDef.Properties.Transparent))
+                        {
+                            AddElementFace(
+                                ref target, localX, localY, localZ,
+                                Face.Front, element, block.State, atlas,
+                                GetBrightness(world, x, y, z - 1) * 0.65f,
+                                world, x, y, z);
+                        }
+
+                        if (ShouldDrawFace(
+                            block.Id, world.GetBlock(x, y, z + 1).Id,
+                            blockDef.Properties.Transparent))
+                        {
+                            AddElementFace(
+                                ref target, localX, localY, localZ,
+                                Face.Back, element, block.State, atlas,
+                                GetBrightness(world, x, y, z + 1) * 0.65f,
+                                world, x, y, z);
+                        }
+                    }
+                }
+            }
+        }
+
+        return new SectionMeshes(
+            Wrap(opaque, atlas),
+            Wrap(translucent, atlas));
+    }
+
+    private static Mesh Wrap(MeshData data, ChunkTextureAtlas atlas)
+    {
+        if (data.Vertices.Count == 0)
+            return new Mesh([], [], vertexStride: 24);
+
+        return new Mesh(data.Vertices, data.Indices, atlas.Image, vertexStride: 24);
+    }
+
+    private static void AddElementFace(
+        ref MeshData mesh,
+        int x, int y, int z,
+        Face face, BlockElement element,
+        byte state, ChunkTextureAtlas atlas,
+        float light = 1f, World? aoWorld = null,
+        int worldX = 0, int worldY = 0, int worldZ = 0)
+    {
+        var direction = ToBlockFaceDirection(face);
+        var modelFace = GetModelFace(element, direction);
+        var region = atlas.Get(modelFace.Texture);
+
+        Vector3 min = element.Min;
+        Vector3 max = element.Max;
+
+        Vector3 v0, v1, v2, v3;
+        float u0, v_0, u1, v_1, u2, v_2, u3, v_3;
+
+        switch (face)
+        {
+            case Face.Left:
+                v0 = new(min.X, min.Y, min.Z);
+                v1 = new(min.X, max.Y, min.Z);
+                v2 = new(min.X, max.Y, max.Z);
+                v3 = new(min.X, min.Y, max.Z);
+
+                u0 = 1f; v_0 = 1f;
+                u1 = 1f; v_1 = 0f;
+                u2 = 0f; v_2 = 0f;
+                u3 = 0f; v_3 = 1f;
+                break;
+
+            case Face.Right:
+                v0 = new(max.X, min.Y, max.Z);
+                v1 = new(max.X, max.Y, max.Z);
+                v2 = new(max.X, max.Y, min.Z);
+                v3 = new(max.X, min.Y, min.Z);
+
+                u0 = 1f; v_0 = 1f;
+                u1 = 1f; v_1 = 0f;
+                u2 = 0f; v_2 = 0f;
+                u3 = 0f; v_3 = 1f;
+                break;
+
+            case Face.Bottom:
+                v0 = new(min.X, min.Y, max.Z);
+                v1 = new(min.X, min.Y, min.Z);
+                v2 = new(max.X, min.Y, min.Z);
+                v3 = new(max.X, min.Y, max.Z);
+
+                u0 = 0f; v_0 = 1f;
+                u1 = 1f; v_1 = 1f;
+                u2 = 1f; v_2 = 0f;
+                u3 = 0f; v_3 = 0f;
+                break;
+
+            case Face.Top:
+                v0 = new(min.X, max.Y, min.Z);
+                v1 = new(min.X, max.Y, max.Z);
+                v2 = new(max.X, max.Y, max.Z);
+                v3 = new(max.X, max.Y, min.Z);
+
+                u0 = 0f; v_0 = 1f;
+                u1 = 1f; v_1 = 1f;
+                u2 = 1f; v_2 = 0f;
+                u3 = 0f; v_3 = 0f;
+                break;
+
+            case Face.Front:
+                v0 = new(max.X, min.Y, min.Z);
+                v1 = new(max.X, max.Y, min.Z);
+                v2 = new(min.X, max.Y, min.Z);
+                v3 = new(min.X, min.Y, min.Z);
+
+                u0 = 1f; v_0 = 1f;
+                u1 = 1f; v_1 = 0f;
+                u2 = 0f; v_2 = 0f;
+                u3 = 0f; v_3 = 1f;
+                break;
+
+            case Face.Back:
+                v0 = new(min.X, min.Y, max.Z);
+                v1 = new(min.X, max.Y, max.Z);
+                v2 = new(max.X, max.Y, max.Z);
+                v3 = new(max.X, min.Y, max.Z);
+
+                u0 = 1f; v_0 = 1f;
+                u1 = 1f; v_1 = 0f;
+                u2 = 0f; v_2 = 0f;
+                u3 = 0f; v_3 = 1f;
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(face), face, null);
+        }
+
+        float ao0 = 1f, ao1 = 1f, ao2 = 1f, ao3 = 1f;
+
+        if (aoWorld is not null)
+        {
+            ao0 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v0);
+            ao1 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v1);
+            ao2 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v2);
+            ao3 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v3);
+        }
+
+        if (state != 0)
+        {
+            v0 = RotateY(v0, state);
+            v1 = RotateY(v1, state);
+            v2 = RotateY(v2, state);
+            v3 = RotateY(v3, state);
+        }
+
+        var offset = new Vector3(x, y, z);
+
+        v0 += offset;
+        v1 += offset;
+        v2 += offset;
+        v3 += offset;
+
+        var i = (uint)(mesh.Vertices.Count / 6);
+
+        AddVertex(ref mesh, v0.X, v0.Y, v0.Z, U(u0, region), V(v_0, region), light * ao0);
+        AddVertex(ref mesh, v1.X, v1.Y, v1.Z, U(u1, region), V(v_1, region), light * ao1);
+        AddVertex(ref mesh, v2.X, v2.Y, v2.Z, U(u2, region), V(v_2, region), light * ao2);
+        AddVertex(ref mesh, v3.X, v3.Y, v3.Z, U(u3, region), V(v_3, region), light * ao3);
+
+        mesh.Indices.AddRange(face switch
+        {
+            Face.Left or Face.Right or Face.Front or Face.Back =>
+            [
+                i, i + 2, i + 1,
+                i, i + 3, i + 2
+            ],
+
+            Face.Bottom or Face.Top =>
+            [
+                i, i + 1, i + 2,
+                i, i + 2, i + 3
+            ],
+
+            _ => throw new ArgumentOutOfRangeException(nameof(face), face, null)
+        });
+    }
+
+    private static float GetVertexAO(World world, int x, int y, int z, Face face, Vector3 vertex)
+    {
+        int sx = vertex.X < 0.5f ? -1 : 1;
+        int sy = vertex.Y < 0.5f ? -1 : 1;
+        int sz = vertex.Z < 0.5f ? -1 : 1;
+
+        int nx = 0, ny = 0, nz = 0;
+        int ax = 0, ay = 0, az = 0;
+        int bx = 0, by = 0, bz = 0;
+
+        switch (face)
+        {
+            case Face.Left:
+                nx = -1; ay = sy; bz = sz;
+                break;
+
+            case Face.Right:
+                nx = 1; ay = sy; bz = sz;
+                break;
+
+            case Face.Bottom:
+                ny = -1; ax = sx; bz = sz;
+                break;
+
+            case Face.Top:
+                ny = 1; ax = sx; bz = sz;
+                break;
+
+            case Face.Front:
+                nz = -1; ax = sx; by = sy;
+                break;
+
+            case Face.Back:
+                nz = 1; ax = sx; by = sy;
+                break;
+        }
+
+        bool side1 = IsAOBlock(world, x + nx + ax, y + ny + ay, z + nz + az);
+
+        bool side2 = IsAOBlock(world, x + nx + bx, y + ny + by, z + nz + bz);
+
+        bool corner = IsAOBlock(world, x + nx + ax + bx, y + ny + ay + by, z + nz + az + bz);
+
+        int ao = side1 && side2
+            ? 0
+            : 3
+                - (side1 ? 1 : 0)
+                - (side2 ? 1 : 0)
+                - (corner ? 1 : 0);
+
+        return 0.55f + ao * 0.15f;
+    }
+
+    private static bool IsAOBlock(World world, int x, int y, int z)
+    {
+        const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
+
+        if (y < 0 || y >= worldHeight)
+            return false;
+
+        uint id = world.GetBlock(x, y, z).Id;
+
+        return id != 0 && RenderInfo(id).Opaque;
+    }
+
+    private static Vector3 RotateY(Vector3 position, byte state)
+    {
+        position -= new Vector3(0.5f);
+
+        position = state switch
+        {
+            0 => position, // none
+            1 => position, // north
+            2 => new Vector3(-position.X, position.Y, -position.Z), // south
+            3 => new Vector3(position.Z, position.Y, -position.X), // east
+            4 => new Vector3(-position.Z, position.Y, position.X), // west
+
+            _ => position
+        };
+
+        return position + new Vector3(0.5f);
+    }
+
+    public static Mesh BuildBlockMesh(uint blockId)
+    {
+        var model = GameAPIs.BlockRegistry.Get(blockId).Model;
+
+        if (model.Elements.Count == 0)
+            return new Mesh([], [], vertexStride: 24);
+
+        var atlas = GlobalAtlas;
+        var mesh = new MeshData();
+
+        foreach (var element in model.Elements)
+            AddElement(ref mesh, 0, 0, 0, element, 0, atlas);
+
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 24);
+    }
+
+    private static void AddElement(ref MeshData mesh, int x, int y, int z, BlockElement element, byte state, ChunkTextureAtlas atlas)
+    {
+        foreach (var face in Enum.GetValues<Face>())
+            AddElementFace(ref mesh, x, y, z, face, element, state, atlas);
+    }
+
+    public static Mesh BuildItemMesh(Item item)
+    {
+        if (item.Texture is not { } texture)
+            return new Mesh([], [], vertexStride: 24);
+
+        var atlas = ChunkTextureAtlasBuilder.Build(new HashSet<string> { texture.Path }, 32);
+
+        var region = atlas.Get(texture.Path);
+        var mesh = new MeshData();
+
+        AddItemFace(
+            ref mesh,
+            -0.5f, -0.5f, 0f,
+             0.5f, -0.5f, 0f,
+             0.5f, 0.5f, 0f,
+            -0.5f, 0.5f, 0f);
+
+        AddItemFace(
+            ref mesh,
+            -0.5f, -0.5f, 0f,
+            -0.5f, 0.5f, 0f,
+             0.5f, 0.5f, 0f,
+             0.5f, -0.5f, 0f);
+
+        return new Mesh(mesh.Vertices, mesh.Indices, atlas.Image, vertexStride: 24);
+    }
+
+    private static void AddItemFace(
+        ref MeshData mesh,
+        float x0, float y0, float z0,
+        float x1, float y1, float z1,
+        float x2, float y2, float z2,
+        float x3, float y3, float z3)
+    {
+        var i = (uint)(mesh.Vertices.Count / 6);
+
+        mesh.Vertices.AddRange([
+            x0, y0, z0, 0f, 1f, 1f,
+            x1, y1, z1, 1f, 1f, 1f,
+            x2, y2, z2, 1f, 0f, 1f,
+            x3, y3, z3, 0f, 0f, 1f
+        ]);
+
+        mesh.Indices.AddRange([
+            i, i + 1, i + 2,
+            i, i + 2, i + 3
+        ]);
+    }
+
+    public static Mesh BuildPlayerMesh()
+    {
+        List<float> vertices = [];
+        List<uint> indices = [];
+
+        // Each AddBox call now needs six UV rectangles matching the skin layout.
+        AddBox(vertices, indices, new(-0.25f, 1.5f, -0.25f), new(0.25f, 2.0f, 0.25f), HeadUV);
+        AddBox(vertices, indices, new(-0.25f, 0.75f, -0.125f), new(0.25f, 1.5f, 0.125f), TorsoUV);
+        AddBox(vertices, indices, new(-0.5f, 0.75f, -0.125f), new(-0.25f, 1.5f, 0.125f), LeftArmUV);
+        AddBox(vertices, indices, new(0.25f, 0.75f, -0.125f), new(0.5f, 1.5f, 0.125f), RightArmUV);
+        AddBox(vertices, indices, new(-0.25f, 0.0f, -0.125f), new(0.0f, 0.75f, 0.125f), LeftLegUV);
+        AddBox(vertices, indices, new(0.0f, 0.0f, -0.125f), new(0.25f, 0.75f, 0.125f), RightLegUV);
+
+        var image = TextureLoader.Load(AssetRegistry.Get("default_skin"));
+        return new(vertices, indices, image, 24);
+    }
+
+    public static Mesh BuildPlayerHandMesh()
+    {
+        List<float> vertices = [];
+        List<uint> indices = [];
+
+        AddBox(vertices, indices, new(-0.125f, -0.125f, -0.75f), new(0.125f, 0.125f, 0f), RightArmUV);
+
+        var image = TextureLoader.Load(AssetRegistry.Get("default_skin"));
+        return new(vertices, indices, image, 24);
+    }
+
+    private static void AddBox(
+        List<float> vertices, List<uint> indices, 
+        Vector3 min, Vector3 max, 
+        (float U0, float V0, float U1, float V1)[] uv)
+    {
+        if (uv.Length != 6)
+            throw new ArgumentException("Exactly six UV rectangles are required.", nameof(uv));
+
+        uint start = (uint)(vertices.Count / 6);
+
+        AddFace(vertices, min.X, min.Y, min.Z, max.X, min.Y, min.Z, max.X, max.Y, min.Z, min.X, max.Y, min.Z, uv[0].U0, uv[0].V0, uv[0].U1, uv[0].V1);
+        AddFace(vertices, max.X, min.Y, max.Z, min.X, min.Y, max.Z, min.X, max.Y, max.Z, max.X, max.Y, max.Z, uv[1].U0, uv[1].V0, uv[1].U1, uv[1].V1);
+        AddFace(vertices, min.X, min.Y, max.Z, min.X, min.Y, min.Z, min.X, max.Y, min.Z, min.X, max.Y, max.Z, uv[2].U0, uv[2].V0, uv[2].U1, uv[2].V1);
+        AddFace(vertices, max.X, min.Y, min.Z, max.X, min.Y, max.Z, max.X, max.Y, max.Z, max.X, max.Y, min.Z, uv[3].U0, uv[3].V0, uv[3].U1, uv[3].V1);
+        AddFace(vertices, min.X, max.Y, min.Z, max.X, max.Y, min.Z, max.X, max.Y, max.Z, min.X, max.Y, max.Z, uv[4].U0, uv[4].V0, uv[4].U1, uv[4].V1);
+        AddFace(vertices, min.X, min.Y, max.Z, max.X, min.Y, max.Z, max.X, min.Y, min.Z, min.X, min.Y, min.Z, uv[5].U0, uv[5].V0, uv[5].U1, uv[5].V1);
+
+        for (uint face = 0; face < 6; face++)
+        {
+            uint offset = start + face * 4;
+            indices.AddRange([offset, offset + 1, offset + 2, offset + 2, offset + 3, offset]);
+        }
+    }
+
+    private static void AddFace(
+        List<float> vertices,
+        float x0, float y0, float z0,
+        float x1, float y1, float z1,
+        float x2, float y2, float z2,
+        float x3, float y3, float z3,
+        float u0, float v0, float u1, float v1)
+    {
+        vertices.AddRange([
+            x0, y0, z0, u0, v1, 1f,
+            x1, y1, z1, u1, v1, 1f,
+            x2, y2, z2, u1, v0, 1f,
+            x3, y3, z3, u0, v0, 1f
+        ]);
+    }
+
+    private static void AddVertex(ref MeshData mesh, float x, float y, float z, float u, float v, float light)
+    {
+        var vertices = mesh.Vertices;
+
+        vertices.Add(x);
+        vertices.Add(y);
+        vertices.Add(z);
+        vertices.Add(u);
+        vertices.Add(v);
+        vertices.Add(light);
+    }
+
+    private static float U(float u, AtlasRegion region)
+    {
+        return region.U0 + u * (region.U1 - region.U0);
+    }
+
+    private static float V(float v, AtlasRegion region)
+    {
+        return region.V0 + v * (region.V1 - region.V0);
+    }
+
+    private static BlockFace GetModelFace(BlockElement element, BlockFaceDirection face)
+    {
+        return element.Faces.First(x => x.Direction == face);
+    }
+
+    private static BlockFaceDirection ToBlockFaceDirection(Face face)
+    {
+        return face switch
+        {
+            Face.Left => BlockFaceDirection.West,
+            Face.Right => BlockFaceDirection.East,
+            Face.Bottom => BlockFaceDirection.Bottom,
+            Face.Top => BlockFaceDirection.Top,
+            Face.Front => BlockFaceDirection.North,
+            Face.Back => BlockFaceDirection.South,
+            _ => throw new ArgumentOutOfRangeException(nameof(face), face, null)
+        };
+    }
+}

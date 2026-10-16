@@ -1,0 +1,298 @@
+﻿using Crafty.ChunkGeneration;
+using Crafty.ChunkGeneration.World;
+using Crafty.Systems;
+using Crafty.Systems.Lighting;
+using Crafty.Systems.Physics;
+using Crafty.Components;
+using Crafty.Helpers;
+using Crafty.Core;
+using Crafty.UI;
+using CraftyNative;
+using CraftyNative.Animation;
+using CraftyNative.ECS;
+using CraftyNative.Scenes;
+using CraftyNative.ThreeD;
+using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ThreeD.Physics;
+using System.Numerics;
+
+namespace Crafty;
+
+public sealed class MainWindow : Window
+{
+    private static double _elapsed;
+    private static int _frames;
+    public static int FPS { get; private set; }
+    public double WorstFrameTime { get; private set; }
+    public PlayerCameraSystem CameraSystem;
+    private GameWorld _gameWorld = null!;
+    private World _world = null!;
+    private bool _quitRequested;
+    private AnimatedMesh _playerAnimation = null!;
+    private AnimationManager _animationManager = null!;
+    private WorldObject _player;
+    private WorldObject _camera;
+    private WorldObject _hand;
+    private WorldObject _heldBlock;
+
+    public MainWindow()
+    {
+        Initialize();
+
+        var seed = WorldSeed.Generate();
+        var worldPath = Program.LaunchConfig.SelectedWorldPath;
+        ChunkLoader.WorldGenService = new WorldGenService(Path.GetDirectoryName(worldPath)!);
+
+        GameAPIs.Initialize();
+        
+        CameraSystem = new(new(1));
+
+        Activated += Window_Activated;
+        Focused += Window_Focused;
+    }
+
+    private void Resume()
+    {
+        GameStateManager.Set(GameState.Playing);
+        InputManager.CursorMode = Cursor.Raw;
+    }
+
+    private void Pause()
+    {
+        GameStateManager.Set(GameState.Paused);
+        InputManager.CursorMode = Cursor.Normal;
+    }
+
+    private void Window_Focused(object? sender, bool focused)
+    {
+        if (!focused)
+        {
+            if (GameStateManager.IsInventory)
+                return;
+            GameStateManager.Set(GameState.Paused);
+            InputManager.CursorMode = Cursor.Normal;
+            return;
+        }
+    }
+
+    protected override void OnMouseMove(Vector2 position)
+    {
+        if (GameStateManager.IsPaused)
+            return;
+
+        CameraSystem.IsMouseMoving = true;
+        CameraSystem.Update(ref _gameWorld.Scene);
+        CameraSystem.IsMouseMoving = false;
+    }
+
+    protected override void OnKeyDown(Key key)
+    {
+        if (key is Key.Escape && GameStateManager.IsPlaying)
+            Pause();
+        else if (key is Key.Escape && GameStateManager.IsPaused)
+            Resume();
+    }
+
+    private void QuitAndSave()
+    {
+        WorldManager.Save();
+        WorldManager.DeleteUnchangedChunks();
+        _quitRequested = true;
+    }
+
+    private void Window_Activated(object? sender, EventArgs e)
+    {
+        GameStateManager.Set(GameState.Paused);
+
+        _gameWorld = new(this)
+        {
+            Scene = new()
+        };
+
+        PauseMenu.Initialize(Resume, QuitAndSave);
+        HudHotbar.Initialize();
+        var emptyHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_empty.png");
+        var fullHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_full.png");
+        var halfHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_half.png");
+        HudHearts.Initialize(fullHeart.Pixels, halfHeart.Pixels, emptyHeart.Pixels);
+        HudInventory.Initialize();
+
+        HudInventory.AddTab("Blocks", "Blocks", MeshBuilder.BuildBlockMesh(1));
+        
+        _camera = _gameWorld.Scene.CreateObject();
+        var playerModel = BuildPlayer();
+        _player = _gameWorld.Scene.CreateObject();
+
+        BuildHand();
+
+        _gameWorld.Scene.AddComponent(_camera, new Transform
+        {
+            LocalPosition = new(0, 0.7f, 0),
+        });
+        _gameWorld.Scene.AddComponent(_camera, new Camera
+        {
+            FieldOfView = 70f * MathF.PI / 180f,
+            NearPlane = 0.1f,
+            FarPlane = 1000f
+        });
+        _gameWorld.Scene.SetParent(playerModel, _player);
+        _gameWorld.Scene.SetParent(_camera, _player);
+        _gameWorld.Scene.SetParent(_hand, _camera);
+        _gameWorld.Scene.AddComponent(_player, new Player());
+        _gameWorld.Scene.AddComponent(_player, new Damageable());
+        _gameWorld.Scene.AddComponent(_player, new FallDamage());
+        _gameWorld.Scene.AddComponent(_player, new Attackable());
+        _gameWorld.Scene.AddComponent(_player, new Attacker());
+        _gameWorld.Scene.AddComponent(_player, new Inventory());
+        _gameWorld.Scene.AddComponent(_player, new Hotbar());
+        _gameWorld.Scene.AddComponent(_player, new Transform() { Position = new(0, 75, 0) });
+        _gameWorld.Scene.AddComponent(_player, new Movement());
+        _gameWorld.Scene.AddComponent(_player, new Collider(new(0.6f, 1.8f, 0.6f)));
+
+        WorldManager.Load();
+        _world = WorldManager.Current;
+        _world.BlockChanged += change =>
+        {
+            SkyLightSystem.OnBlockChanged(_world, change.X, change.Y, change.Z, change.OldId, change.NewId);
+            WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
+        };
+
+        _gameWorld.Scene.Systems.Add(new WorldTimeSystem());
+        _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));
+        _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));
+        
+        var meshCache = new Dictionary<uint, Mesh>();
+        InventorySystem.MeshResolver = slot =>
+        {
+            uint block = slot.BlockId ?? slot.ItemId;
+            if (!meshCache.TryGetValue(block, out var mesh))
+                meshCache[block] = mesh = MeshBuilder.BuildBlockMesh(block);
+            return mesh;
+        };
+        InventorySystem.BlockIdResolver = itemId =>
+        {
+            var item = GameAPIs.ItemRegistry.Get(itemId);
+            if (!string.IsNullOrEmpty(item.BlockId))
+            {
+                var blockId = GameAPIs.BlockRegistry.Get(item.BlockId);
+                return blockId;
+            }
+
+            return 0;
+        };
+
+        _gameWorld.Scene.Systems.Add(new PlayerSystem());
+        _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
+        _gameWorld.Scene.Systems.Add(new CollisionSystem(_world));
+        _gameWorld.Scene.Systems.Add(new CombatSystem());
+        _gameWorld.Scene.Systems.Add(new DamageSystem());
+        _gameWorld.Scene.Systems.Add(new FallDamageSystem());
+        _gameWorld.Scene.Systems.Add(new InventorySystem());
+        _gameWorld.Scene.Systems.Add(new HotbarSystem());
+        _gameWorld.Scene.Systems.Add(new PlayerBlockInteractionSystem(_world));
+        _gameWorld.Scene.Systems.Add(new WorldMeshUpdateSystem(_world));
+
+        SystemAPI.JobSystem = new JobSystem();
+    }
+
+    // for third person rendering in later alpha versions
+    private WorldObject BuildPlayer()
+    {
+        var mesh = MeshBuilder.BuildPlayerMesh();
+
+        _playerAnimation = PlayerAnimation.Create(mesh);
+        _animationManager = new(_playerAnimation);
+
+        var playerModel = _gameWorld.Scene.CreateObject();
+
+        _gameWorld.Scene.AddComponent(playerModel, new Transform
+        {
+            LockXAxis = true,
+            LockZAxis = true,
+            LocalPosition = new(0, -0.9f, 0)
+            //Position = new(0, 75, 0)
+        });
+
+        _gameWorld.Scene.SetRenderable(playerModel, new(mesh, false));
+
+        return playerModel;
+    }
+
+    
+    private void BuildHand()
+    {
+        var mesh = MeshBuilder.BuildPlayerHandMesh();
+
+        _hand = _gameWorld.Scene.CreateObject();
+        _heldBlock = _gameWorld.Scene.CreateObject();
+
+        _gameWorld.Scene.AddComponent(_hand, new Transform
+        {
+            LocalPosition = HandViewModelSystem.RestPosition,
+            LocalRotation = HandViewModelSystem.RestRotation,
+            RotateAroundParent = true
+        });
+
+        _gameWorld.Scene.SetRenderable(_hand, new(mesh, true));
+
+        _gameWorld.Scene.AddComponent(_heldBlock, new Transform
+        {
+            LocalPosition = new(0f, -0.2f, -0.2f),
+            LocalRotation = new(-1.1f, 0f, 0f),
+            Scale = new(0.5f),
+            RotateAroundParent = true
+        });
+
+        _gameWorld.Scene.SetParent(_heldBlock, _hand);
+    }
+
+    protected override void Render(double deltaTime)
+    {
+        ref var movement = ref _gameWorld.Scene.GetComponent<Movement>(_player);
+        ref var cameraTransform = ref _gameWorld.Scene.GetComponent<Transform>(_camera);
+        ref var handTransform = ref _gameWorld.Scene.GetComponent<Transform>(_hand);
+        bool isMoving = movement.Velocity.X != 0f || movement.Velocity.Z != 0f;
+        _animationManager.Update((float)deltaTime, isMoving, CameraSystem.Yaw, CameraSystem.Pitch, ref cameraTransform);
+
+        HudInventory.Render(Size);
+        HudHotbar.Render(Size);
+        HudHearts.Render(Size);
+
+        if (GameStateManager.IsPaused)
+            PauseMenu.Render(Size);
+
+        _gameWorld.Render(deltaTime);
+
+
+        double frameTime = deltaTime * 1000.0;
+
+        _elapsed += deltaTime;
+        _frames++;
+
+        if (frameTime > WorstFrameTime)
+            WorstFrameTime = frameTime;
+
+        if (_elapsed >= 1.0)
+        {
+            FPS = _frames;
+
+            Console.WriteLine($"FPS: {FPS}");
+            Console.WriteLine($"Last Frame: {frameTime:F2} ms");
+            Console.WriteLine($"Worst Frame: {WorstFrameTime:F2} ms");
+
+            _elapsed = 0;
+            _frames = 0;
+            WorstFrameTime = 0;
+        }
+
+        if (_quitRequested)
+            Close();
+    }
+
+    public override void Dispose()
+    {
+        SystemAPI.JobSystem.Dispose();
+        _gameWorld?.Dispose();
+        base.Dispose();
+    }
+}
