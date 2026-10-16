@@ -5,6 +5,7 @@ using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.UI;
 using Silk.NET.Windowing;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Vulcan;
@@ -366,6 +367,7 @@ public unsafe static class CraftyNative
         HudRenderer.Initialize(Device, size);
         UIRenderer.Initialize(Device);
         UITextRenderer.Initialize(Device, FontLoader.Load(Device, "Assets/Fonts/Roboto-Regular.ttf", 32));
+        SpriteRenderer.Initialize(Device);
 
         Window.FramebufferResize += newSize =>
         {
@@ -453,6 +455,7 @@ public unsafe static class CraftyNative
         _commandBuffer.SetPipeline(_pipeline);
 
         var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, out var visibleSections);
+
         for (int i = 0; i < visibleSectionsCount; i++)
         {
             var section = visibleSections[i];
@@ -464,6 +467,7 @@ public unsafe static class CraftyNative
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
             DrawMesh(mesh, model * view * projection, clip: new Vector4(0, 0, size.X, size.Y));
         }
+
 
         foreach (var (objectId, renderable) in scene.Renderables)
         {
@@ -512,12 +516,15 @@ public unsafe static class CraftyNative
         Vector2 vector2Size = new(size.X, size.Y);
 
         UIRenderer.BeginFrame(vector2Size);
+        SpriteRenderer.BeginFrame(vector2Size);
 
         HudRenderer.Render(_commandBuffer, vector2Size);
         UIRenderer.Render(_commandBuffer, vector2Size);
         UITextRenderer.Render(_commandBuffer, vector2Size);
+        SpriteRenderer.Render(_commandBuffer);
 
         UIRenderer.RenderOverlay(_commandBuffer, vector2Size);
+        SpriteRenderer.Render(_commandBuffer);
         UITextRenderer.RenderOverlay(_commandBuffer, vector2Size);
 
         _commandBuffer.End();

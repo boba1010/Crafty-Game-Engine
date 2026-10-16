@@ -45,7 +45,7 @@ public sealed class MainWindow : Window
 
         GameAPIs.Initialize();
         
-        CameraSystem = new();
+        CameraSystem = new(new(1));
 
         Activated += Window_Activated;
         Focused += Window_Focused;
@@ -111,6 +111,10 @@ public sealed class MainWindow : Window
 
         PauseMenu.Initialize(Resume, QuitAndSave);
         HudHotbar.Initialize();
+        var emptyHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_empty.png");
+        var fullHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_full.png");
+        var halfHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_half.png");
+        HudHearts.Initialize(fullHeart.Pixels, halfHeart.Pixels, emptyHeart.Pixels);
         HudInventory.Initialize();
 
         HudInventory.AddTab("Blocks", "Blocks", MeshBuilder.BuildBlockMesh(1));
@@ -135,6 +139,10 @@ public sealed class MainWindow : Window
         _gameWorld.Scene.SetParent(_camera, _player);
         _gameWorld.Scene.SetParent(_hand, _camera);
         _gameWorld.Scene.AddComponent(_player, new Player());
+        _gameWorld.Scene.AddComponent(_player, new Damageable());
+        _gameWorld.Scene.AddComponent(_player, new FallDamage());
+        _gameWorld.Scene.AddComponent(_player, new Attackable());
+        _gameWorld.Scene.AddComponent(_player, new Attacker());
         _gameWorld.Scene.AddComponent(_player, new Inventory());
         _gameWorld.Scene.AddComponent(_player, new Hotbar());
         _gameWorld.Scene.AddComponent(_player, new Transform() { Position = new(0, 75, 0) });
@@ -149,11 +157,10 @@ public sealed class MainWindow : Window
             WorldMeshManager.MarkBlockDirty(change.X, change.Y, change.Z);
         };
 
-        _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));
         _gameWorld.Scene.Systems.Add(new WorldTimeSystem());
-        _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
-        _gameWorld.Scene.Systems.Add(new HotbarSystem());
-
+        _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));
+        _gameWorld.Scene.Systems.Add(new HandViewModelSystem(_hand, _heldBlock, _animationManager));
+        
         var meshCache = new Dictionary<uint, Mesh>();
         InventorySystem.MeshResolver = slot =>
         {
@@ -174,9 +181,14 @@ public sealed class MainWindow : Window
             return 0;
         };
 
-        _gameWorld.Scene.Systems.Add(new InventorySystem());
-        _gameWorld.Scene.Systems.Add(new ChunkStreamingSystem(_world));
+        _gameWorld.Scene.Systems.Add(new PlayerSystem());
+        _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
         _gameWorld.Scene.Systems.Add(new CollisionSystem(_world));
+        _gameWorld.Scene.Systems.Add(new CombatSystem());
+        _gameWorld.Scene.Systems.Add(new DamageSystem());
+        _gameWorld.Scene.Systems.Add(new FallDamageSystem());
+        _gameWorld.Scene.Systems.Add(new InventorySystem());
+        _gameWorld.Scene.Systems.Add(new HotbarSystem());
         _gameWorld.Scene.Systems.Add(new PlayerBlockInteractionSystem(_world));
         _gameWorld.Scene.Systems.Add(new WorldMeshUpdateSystem(_world));
 
@@ -240,15 +252,17 @@ public sealed class MainWindow : Window
         ref var cameraTransform = ref _gameWorld.Scene.GetComponent<Transform>(_camera);
         ref var handTransform = ref _gameWorld.Scene.GetComponent<Transform>(_hand);
         bool isMoving = movement.Velocity.X != 0f || movement.Velocity.Z != 0f;
-        _animationManager.Update((float)deltaTime, isMoving, ref cameraTransform);
+        _animationManager.Update((float)deltaTime, isMoving, CameraSystem.Yaw, CameraSystem.Pitch, ref cameraTransform);
 
         HudInventory.Render(Size);
         HudHotbar.Render(Size);
+        HudHearts.Render(Size);
 
         if (GameStateManager.IsPaused)
             PauseMenu.Render(Size);
 
         _gameWorld.Render(deltaTime);
+
 
         double frameTime = deltaTime * 1000.0;
 

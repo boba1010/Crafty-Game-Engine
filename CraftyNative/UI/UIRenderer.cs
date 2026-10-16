@@ -40,6 +40,11 @@ public static class UIRenderer
 
     private readonly record struct UIBatch(int StartVertex, int VertexCount, Scissor Scissor);
 
+    private readonly record struct OverlayBatch(int StartVertex, int VertexCount);
+
+    private static readonly List<OverlayBatch> _overlayBatches = [];
+    private static int _overlayBatchStart;
+
     private readonly record struct ClipRect(float X, float Y, float Width, float Height)
     {
         public float Right => X + Width;
@@ -163,7 +168,7 @@ public static class UIRenderer
                     Location = 0,
                     Format = TextureFormat.R32G32B32A32Float,
                     Offset = 24
-                }
+                },
             }
         });
 
@@ -263,7 +268,7 @@ public static class UIRenderer
         AppendRoundedRectangle(_vertices, position, size, radius, color);
     }
 
-    public static void DrawOverlayRoundedRectangle(Vector2 position, Vector2 size, float radius, Vector4 color) 
+    public static void DrawOverlayRoundedRectangle(Vector2 position, Vector2 size, float radius, Vector4 color)
     {
         AppendRoundedRectangle(_overlayVertices, position, size, radius, color);
     }
@@ -409,6 +414,17 @@ public static class UIRenderer
         }
     }
 
+    private static void FinishOverlayBatch()
+    {
+        int count = _overlayVertices.Count - _overlayBatchStart;
+
+        if (count <= 0)
+            return;
+
+        _overlayBatches.Add(new OverlayBatch(_overlayBatchStart, count));
+        _overlayBatchStart = _overlayVertices.Count;
+    }
+
     private static Vector2 ToClip(Vector2 point) => new(point.X / _screenSize.X * 2f - 1f, 1f - point.Y / _screenSize.Y * 2f);
 
     public static void Render(ICommandBuffer commandBuffer, Vector2 size)
@@ -447,13 +463,6 @@ public static class UIRenderer
         _batchStartVertex = 0;
         _clipInitialized = false;
 
-        _vertices.Clear();
-        _batches.Clear();
-        _clipStack.Clear();
-
-        _batchStartVertex = 0;
-        _clipInitialized = false;
-
         commandBuffer.SetScissor(new Scissor
         {
             X = 0,
@@ -468,6 +477,8 @@ public static class UIRenderer
     public static void RenderOverlay(ICommandBuffer commandBuffer, Vector2 size)
     {
         _screenSize = size;
+
+        FinishOverlayBatch();
 
         if (_overlayVertices.Count == 0)
             return;
@@ -488,9 +499,14 @@ public static class UIRenderer
             Height = (uint)size.Y
         });
 
-        commandBuffer.Draw((uint)_overlayVertices.Count, firstVertex: 0);
+        foreach (OverlayBatch batch in _overlayBatches)
+        {
+            commandBuffer.Draw((uint)batch.VertexCount, firstVertex: (uint)batch.StartVertex);
+        }
 
         _overlayVertices.Clear();
+        _overlayBatches.Clear();
+        _overlayBatchStart = 0;
     }
 
     public static void DrawMesh(Mesh mesh, Vector2 position, Vector3 rotation, Vector3 scale, Vector2 size)

@@ -4,7 +4,7 @@ namespace Crafty.Engine.Components;
 
 public struct Player() : IComponent
 {
-    public GameMode GameMode = GameMode.Creative;
+    public GameMode GameMode = GameMode.Survival;
     public Prespective Prespective;
 }
 

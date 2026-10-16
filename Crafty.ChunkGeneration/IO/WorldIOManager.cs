@@ -48,7 +48,7 @@ public static class WorldIOManager
         using var compression = new DeflateStream(fs, CompressionMode.Compress);
         using var writer = new BinaryWriter(compression);
 
-        writer.Write(chunk.Blocks.Count);
+        writer.Write(chunk.Blocks.Length);
         writer.Write(chunk.IsModified);
 
         foreach (var block in chunk.Blocks)
@@ -74,15 +74,14 @@ public static class WorldIOManager
             Z = z,
         };
 
-        List<BlockPlacement> blocks = [];
+        BlockPlacement[] blocks = new BlockPlacement[Chunk.Volume];
 
         for (int i = 0; i < count; i++)
         {
             var id = reader.ReadUInt32();
-
             var state = reader.ReadByte();
 
-            blocks.Add(new(id, state));
+            blocks[i] = new(id, state);
         }
 
         chunk.Blocks = blocks;

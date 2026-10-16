@@ -1,7 +1,6 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.Engine.Components;
 using Crafty.Engine.Jobs;
-using Crafty.Engine.Systems.Lighting;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;

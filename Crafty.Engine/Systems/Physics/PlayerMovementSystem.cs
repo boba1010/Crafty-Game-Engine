@@ -11,7 +11,7 @@ namespace Crafty.Engine.Systems.Physics;
 public sealed class PlayerMovementSystem : IGameplaySystem
 {
     public double Speed { get; set; } = 5;
-    public double Gravity {get;set;} = 30;
+    public double Gravity { get; set; } = 40;
     public double JumpForce { get; set; } = 10;
     private bool _isSprintPressed;
     private bool _isFlying = true;
@@ -121,9 +121,7 @@ public sealed class PlayerMovementSystem : IGameplaySystem
             }
 
             if (_isFlying)
-            {
                 movementComponent.Velocity.Y = movement.Y * (float)(_isSprintPressed ? Speed + 5 : Speed);
-            }
         }
     }
 }

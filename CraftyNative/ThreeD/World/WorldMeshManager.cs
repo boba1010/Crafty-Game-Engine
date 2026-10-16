@@ -186,25 +186,15 @@ public static class WorldMeshManager
                 float verticalRadius = MathF.Sqrt(
                     renderDistanceSquared - horizontalDistanceSquared);
 
-                int minY = Math.Max(
-                    0,
-                    (int)MathF.Floor(
-                        (cameraPosition.Y - verticalRadius) / sectionSize));
+                int minY = Math.Max(0, (int)MathF.Floor((cameraPosition.Y - verticalRadius) / sectionSize));
 
                 int maxY = Math.Min(
                     SectionCoordinate.SectionsY - 1,
-                    (int)MathF.Ceiling(
-                        (cameraPosition.Y + verticalRadius) / sectionSize));
+                    (int)MathF.Ceiling((cameraPosition.Y + verticalRadius) / sectionSize));
 
-                int chunkX = Math.DivRem(
-                    worldSectionX,
-                    sectionsPerChunk,
-                    out int localSectionX);
+                int chunkX = Math.DivRem(worldSectionX, sectionsPerChunk, out int localSectionX);
 
-                int chunkZ = Math.DivRem(
-                    worldSectionZ,
-                    sectionsPerChunk,
-                    out int localSectionZ);
+                int chunkZ = Math.DivRem(worldSectionZ, sectionsPerChunk, out int localSectionZ);
 
                 if (localSectionX < 0)
                 {
@@ -220,12 +210,7 @@ public static class WorldMeshManager
 
                 for (int sectionY = minY; sectionY <= maxY; sectionY++)
                 {
-                    var coordinate = new SectionCoordinate(
-                        chunkX,
-                        chunkZ,
-                        localSectionX,
-                        sectionY,
-                        localSectionZ);
+                    var coordinate = new SectionCoordinate(chunkX, chunkZ, localSectionX, sectionY, localSectionZ);
 
                     if (!_sections.TryGetValue(coordinate, out var section))
                         continue;

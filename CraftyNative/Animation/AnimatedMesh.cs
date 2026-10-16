@@ -65,7 +65,7 @@ public sealed class AnimatedMesh
 
         for (int vertex = part.VertexStart; vertex < end; vertex++)
         {
-            int index = vertex * 5;
+            int index = vertex * 6;
 
             var position = new Vector3(vertices[index], vertices[index + 1], vertices[index + 2]);
 

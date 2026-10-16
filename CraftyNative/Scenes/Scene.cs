@@ -64,7 +64,7 @@ public struct Scene
         _renderables.Remove(obj.Id);
     }
 
-    private ComponentStore<T> GetStore<T>() where T : struct, IComponent
+    private ComponentStore<T> GetStore<T>() where T : unmanaged, IComponent
     {
         if (!_componentStores.TryGetValue(typeof(T), out var value))
         {
@@ -76,23 +76,23 @@ public struct Scene
         return (ComponentStore<T>)value;
     }
 
-    public void AddComponent<T>(WorldObject obj, T component) where T : struct, IComponent
+    public void AddComponent<T>(WorldObject obj, T component) where T : unmanaged, IComponent
     {
         GetStore<T>().Add(obj.Id, component);
     }
 
-    public ref T GetComponent<T>(WorldObject obj) where T : struct, IComponent
+    public ref T GetComponent<T>(WorldObject obj) where T : unmanaged, IComponent
     {
         return ref GetStore<T>().Get(obj.Id);
     }
 
-    public IEnumerable<WorldObject> GetEntitiesWith<T>() where T : struct, IComponent
+    public IEnumerable<WorldObject> GetEntitiesWith<T>() where T : unmanaged, IComponent
     {
         foreach (var id in GetStore<T>().Entities)
             yield return new WorldObject(id);
     }
 
-    public bool HasComponent<T>(WorldObject obj) where T : struct, IComponent
+    public bool HasComponent<T>(WorldObject obj) where T : unmanaged, IComponent
     {
         return GetStore<T>().Contains(obj.Id);
     }

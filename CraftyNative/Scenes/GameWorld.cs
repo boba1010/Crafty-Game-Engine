@@ -1,4 +1,5 @@
 ﻿using CraftyNative.ECS;
+using System.Diagnostics;
 
 namespace CraftyNative.Scenes;
 

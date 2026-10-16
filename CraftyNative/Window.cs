@@ -103,6 +103,7 @@ public abstract class Window : IDisposable
     private void OnWindowResize(Vector2D<int> size)
     {
         Size = new(size.X, size.Y);
+        SystemAPI.WindowSize = Size;
         OnResize(Size);
     }
 

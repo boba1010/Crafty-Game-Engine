@@ -18,16 +18,7 @@ public sealed class World
 
     public bool TryGetChunk(int x, int z, out IChunk chunk)
     {
-        try
-        {
-            chunk = chunks[(x, z)];
-            return true;
-        }
-        catch (Exception)
-        {
-            chunk = null!;
-            return false;
-        }
+        return chunks.TryGetValue((x, z), out chunk!);
     }
 
     public void LoadChunk(IChunk chunk)

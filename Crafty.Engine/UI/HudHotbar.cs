@@ -7,16 +7,27 @@ namespace Crafty.Engine.UI;
 
 public static class HudHotbar
 {
+    public const int Columns = 9;
+    public const int SlotSize = 44;
+    public const int Spacing = 4;
+    public const int BottomMargin = 20;
+
+    public static float Width => Columns * SlotSize + (Columns - 1) * Spacing;
+
+    /// <summary>Top-left corner of the hotbar for a given window size (it is centred horizontally, bottom-aligned).</summary>
+    public static Vector2 GetTopLeft(Vector2 windowSize) =>
+        new((windowSize.X - Width) / 2f, windowSize.Y - BottomMargin - SlotSize);
+
     private static int _selectedSlot = 0;
 
     private static readonly SlotGrid _hotbar = new()
     {
-        Columns = 9,
-        HorizontalSpacing = 4,
-        VerticalSpacing = 4,
+        Columns = Columns,
+        HorizontalSpacing = Spacing,
+        VerticalSpacing = Spacing,
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Bottom,
-        Margin = new(0, 0, 0, 20)
+        Margin = new(0, 0, 0, BottomMargin)
     };
 
     public static void SetSelectedSlot(int slotIndex)
@@ -41,9 +52,9 @@ public static class HudHotbar
 
     public static void Initialize()
     {
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < Columns; i++)
         {
-            var slot = new Slot { Size = new Vector2(44, 44), };
+            var slot = new Slot { Size = new Vector2(SlotSize, SlotSize), };
             _hotbar.Add(slot);
         }
 

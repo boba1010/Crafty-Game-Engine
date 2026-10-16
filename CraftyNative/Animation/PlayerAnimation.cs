@@ -19,53 +19,41 @@ public static class PlayerAnimation
         return animation;
     }
 
-    public static void Walk(AnimatedMesh player, float time)
+    public static void Walk(AnimatedMesh player, float timefloat, float headYaw, float headPitch)
     {
         player.ResetPose();
 
-        float swing = MathF.Sin(time * 8f) * 0.5f;
+        float swing = MathF.Sin(timefloat * 8f) * 0.5f;
 
         ref var body = ref player.GetPart("Body");
         body.Rotation = Quaternion.Identity;
 
-        ref var leftArm =
-            ref player.GetPart("LeftArm");
+        ref var leftArm = ref player.GetPart("LeftArm");
+        ref var rightArm = ref player.GetPart("RightArm");
+        ref var leftLeg = ref player.GetPart("LeftLeg");
+        ref var rightLeg = ref player.GetPart("RightLeg");
+        ref var head = ref player.GetPart("Head");
 
-        ref var rightArm =
-            ref player.GetPart("RightArm");
+        leftArm.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, swing);
 
-        ref var leftLeg =
-            ref player.GetPart("LeftLeg");
+        rightArm.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, -swing);
 
-        ref var rightLeg =
-            ref player.GetPart("RightLeg");
+        leftLeg.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, -swing);
 
-        leftArm.Rotation =
-            Quaternion.CreateFromAxisAngle(
-                Vector3.UnitX,
-                swing);
+        rightLeg.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, swing);
 
-        rightArm.Rotation =
-            Quaternion.CreateFromAxisAngle(
-                Vector3.UnitX,
-                -swing);
-
-        leftLeg.Rotation =
-            Quaternion.CreateFromAxisAngle(
-                Vector3.UnitX,
-                -swing);
-
-        rightLeg.Rotation =
-            Quaternion.CreateFromAxisAngle(
-                Vector3.UnitX,
-                swing);
+        head.Rotation = Quaternion.CreateFromYawPitchRoll(headYaw, -headPitch, 0f);
 
         player.Apply();
     }
 
-    public static void Idle(AnimatedMesh player)
+    public static void Idle(AnimatedMesh player, float headYaw, float headPitch)
     {
         player.ResetPose();
+
+        ref var head = ref player.GetPart("Head");
+        head.Rotation = Quaternion.CreateFromYawPitchRoll(headYaw, -headPitch, 0f);
+
         player.Apply();
     }
 }

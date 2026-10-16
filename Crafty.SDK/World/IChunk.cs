@@ -13,6 +13,4 @@ public interface IChunk
     byte GetSkyLight(int x, int y, int z);
     byte GetBlockLight(int x, int y, int z);
     void SetLight(int x, int y, int z, byte sky, byte block);
-    //int GetHeight(int x, int z);
-    //void SetBiome(int x, int z, BiomePlacement biome);
 }
