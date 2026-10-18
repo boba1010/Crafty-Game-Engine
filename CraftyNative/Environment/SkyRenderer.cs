@@ -154,7 +154,7 @@ public static class SkyRenderer
         MoonRenderer.Initialize(device);
     }
 
-    internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 view, Matrix4x4 projection)
+    internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 viewProjection)
     {
         var constants = new SkyConstants
         {
@@ -169,8 +169,8 @@ public static class SkyRenderer
         commandBuffer.SetUniformBuffer(_constantBuffer, 0);
         commandBuffer.Draw(6);
 
-        SunRenderer.Render(commandBuffer, cameraPosition, view, projection);
-        MoonRenderer.Render(commandBuffer, cameraPosition, view, projection);
+        SunRenderer.Render(commandBuffer, cameraPosition, viewProjection);
+        MoonRenderer.Render(commandBuffer, cameraPosition, viewProjection);
     }
 
     public static void Dispose()

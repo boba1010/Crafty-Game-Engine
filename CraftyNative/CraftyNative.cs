@@ -24,7 +24,8 @@ public unsafe static class CraftyNative
 
     private static readonly Dictionary<Mesh, GPUMesh> _gpuMeshes = [];
 
-    // Reused every frame so the translucent pass doesn't allocate
+    private static double _elapsed;
+
     private static readonly List<(float Dist, int Index)> _translucentOrder = [];
 
     private static ICommandBuffer _commandBuffer = null!;
@@ -411,7 +412,7 @@ public unsafe static class CraftyNative
         }
     }
 
-    public static void Render(ref Scene scene, WorldObject cameraObject)
+    public static void Render(ref Scene scene, WorldObject cameraObject, double deltaTime)
     {
         _commandBuffer.Begin();
 
@@ -449,12 +450,20 @@ public unsafe static class CraftyNative
 
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(camera.FieldOfView, size.X / (float)size.Y, camera.NearPlane, camera.FarPlane);
 
-        SkyRenderer.Render(_commandBuffer, cameraTransform.Position, view, projection);
+        var viewProjection = view * projection;
+
+        SkyRenderer.Render(_commandBuffer, cameraTransform.Position, viewProjection);
 
         // ---- Pass 1: opaque + cutout (world sections, then entities/items) ----
         _commandBuffer.SetPipeline(_pipeline);
 
-        var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, out var visibleSections);
+        var stopWatch = Stopwatch.StartNew();
+
+        var visibleSectionsCount = WorldMeshManager.GetVisibleSections(cameraTransform.Position, viewProjection, out var visibleSections);
+
+        stopWatch.Stop();
+
+        var drawingStopWatch = Stopwatch.StartNew();
 
         for (int i = 0; i < visibleSectionsCount; i++)
         {
@@ -467,6 +476,7 @@ public unsafe static class CraftyNative
             var model = Matrix4x4.CreateTranslation(section.Coordinate.WorldPosition);
             DrawMesh(mesh, model * view * projection, clip: new Vector4(0, 0, size.X, size.Y));
         }
+        drawingStopWatch.Stop();
 
 
         foreach (var (objectId, renderable) in scene.Renderables)
@@ -530,6 +540,18 @@ public unsafe static class CraftyNative
         _commandBuffer.End();
 
         _swapchain.Present();
+
+        _elapsed += deltaTime;
+
+        if (_elapsed >= 1.0)
+        {
+            Console.WriteLine($"Get Visible Sections Time: {stopWatch.Elapsed.TotalMilliseconds:F3}ms" +
+                $"\nTotal Visible Sections: {visibleSectionsCount}");
+
+            Console.WriteLine($"Sections Draw Time: {drawingStopWatch.Elapsed.TotalMilliseconds:F3}ms");
+
+            _elapsed = 0;
+        }
     }
 
     private static void DrawMesh(Mesh mesh, Matrix4x4 mvp, bool applyWorldLighting = true, Vector4? clip = null)

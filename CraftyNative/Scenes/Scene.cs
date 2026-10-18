@@ -81,6 +81,11 @@ public struct Scene
         GetStore<T>().Add(obj.Id, component);
     }
 
+    public void RemoveComponent<T>(WorldObject obj) where T : unmanaged, IComponent
+    {
+        GetStore<T>().Remove(obj.Id);
+    }
+
     public ref T GetComponent<T>(WorldObject obj) where T : unmanaged, IComponent
     {
         return ref GetStore<T>().Get(obj.Id);

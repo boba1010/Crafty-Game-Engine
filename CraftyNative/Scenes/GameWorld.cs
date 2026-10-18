@@ -24,7 +24,7 @@ public sealed class GameWorld : IDisposable
 
         WorldObject camera = Scene.GetEntitiesWith<Camera>().FirstOrDefault();
 
-        CraftyNative.Render(ref Scene, camera);
+        CraftyNative.Render(ref Scene, camera, deltaTime);
     }
 
     public void Dispose()

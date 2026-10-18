@@ -1,5 +1,4 @@
-﻿using Crafty.Engine.Core;
-using Crafty.SDK.Client;
+﻿using Crafty.SDK.Client;
 using CraftyNative.ThreeD;
 
 namespace Crafty.Core;

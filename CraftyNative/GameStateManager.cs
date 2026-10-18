@@ -7,6 +7,7 @@ public static class GameStateManager
     public static bool IsPlaying => Current == GameState.Playing;
     public static bool IsInventory => Current == GameState.Inventory;
     public static bool IsPaused => Current == GameState.Paused;
+    public static bool IsDead => Current == GameState.Dead;
 
     public static void Set(GameState state)
     {
@@ -24,6 +25,9 @@ public static class GameStateManager
     private static bool _isPaused;
     private static void Input_KeyDown(Key key)
     {
+        if (IsDead)
+            return;
+
         if (IsInventory)
             return;
 
@@ -50,4 +54,5 @@ public enum GameState
     Paused,
     Playing,
     Inventory,
+    Dead
 }

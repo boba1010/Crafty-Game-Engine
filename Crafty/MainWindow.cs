@@ -67,7 +67,7 @@ public sealed class MainWindow : Window
     {
         if (!focused)
         {
-            if (GameStateManager.IsInventory)
+            if (GameStateManager.IsInventory || GameStateManager.IsDead)
                 return;
             GameStateManager.Set(GameState.Paused);
             InputManager.CursorMode = Cursor.Normal;
@@ -116,6 +116,7 @@ public sealed class MainWindow : Window
         var halfHeart = TextureLoader.Load("Assets\\Textures\\Hud\\heart\\heart_half.png");
         HudHearts.Initialize(fullHeart.Pixels, halfHeart.Pixels, emptyHeart.Pixels);
         HudInventory.Initialize();
+        HudDeathScreen.Initialize(QuitAndSave);
 
         HudInventory.AddTab("Blocks", "Blocks", MeshBuilder.BuildBlockMesh(1));
         
@@ -139,13 +140,14 @@ public sealed class MainWindow : Window
         _gameWorld.Scene.SetParent(_camera, _player);
         _gameWorld.Scene.SetParent(_hand, _camera);
         _gameWorld.Scene.AddComponent(_player, new Player());
+        _gameWorld.Scene.AddComponent(_player, new Gravity(40));
         _gameWorld.Scene.AddComponent(_player, new Damageable());
         _gameWorld.Scene.AddComponent(_player, new FallDamage());
         _gameWorld.Scene.AddComponent(_player, new Attackable());
         _gameWorld.Scene.AddComponent(_player, new Attacker());
         _gameWorld.Scene.AddComponent(_player, new Inventory());
         _gameWorld.Scene.AddComponent(_player, new Hotbar());
-        _gameWorld.Scene.AddComponent(_player, new Transform() { Position = new(0, 75, 0) });
+        _gameWorld.Scene.AddComponent(_player, new Transform() { Position = new(0, 70, 0) });
         _gameWorld.Scene.AddComponent(_player, new Movement());
         _gameWorld.Scene.AddComponent(_player, new Collider(new(0.6f, 1.8f, 0.6f)));
 
@@ -183,14 +185,20 @@ public sealed class MainWindow : Window
 
         _gameWorld.Scene.Systems.Add(new PlayerSystem());
         _gameWorld.Scene.Systems.Add(new PlayerMovementSystem());
+        _gameWorld.Scene.Systems.Add(new GravitySystem());
         _gameWorld.Scene.Systems.Add(new CollisionSystem(_world));
+        _gameWorld.Scene.Systems.Add(new HostileMobAttackSystem());
         _gameWorld.Scene.Systems.Add(new CombatSystem());
         _gameWorld.Scene.Systems.Add(new DamageSystem());
         _gameWorld.Scene.Systems.Add(new FallDamageSystem());
+        _gameWorld.Scene.Systems.Add(new DeathSystem());
+        _gameWorld.Scene.Systems.Add(new RespawnSystem());
         _gameWorld.Scene.Systems.Add(new InventorySystem());
         _gameWorld.Scene.Systems.Add(new HotbarSystem());
         _gameWorld.Scene.Systems.Add(new PlayerBlockInteractionSystem(_world));
         _gameWorld.Scene.Systems.Add(new WorldMeshUpdateSystem(_world));
+        _gameWorld.Scene.Systems.Add(new MobsSpawnSystem());
+        _gameWorld.Scene.Systems.Add(new MobPathFinderSystem());
 
         SystemAPI.JobSystem = new JobSystem();
     }
@@ -218,7 +226,6 @@ public sealed class MainWindow : Window
         return playerModel;
     }
 
-    
     private void BuildHand()
     {
         var mesh = MeshBuilder.BuildPlayerHandMesh();
@@ -257,6 +264,7 @@ public sealed class MainWindow : Window
         HudInventory.Render(Size);
         HudHotbar.Render(Size);
         HudHearts.Render(Size);
+        HudDeathScreen.Render(Size);
 
         if (GameStateManager.IsPaused)
             PauseMenu.Render(Size);

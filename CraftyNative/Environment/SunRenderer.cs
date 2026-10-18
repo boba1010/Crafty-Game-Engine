@@ -185,7 +185,7 @@ public static class SunRenderer
         });
     }
 
-    internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 view, Matrix4x4 projection)
+    internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 viewProjection)
     {
         if (!SunVisible)
             return;
@@ -223,7 +223,7 @@ public static class SunRenderer
 
         var constants = new SunConstants
         {
-            MVP = view * projection,
+            MVP = viewProjection,
         };
 
         _constantBuffer.Upload(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref constants, 1)));

@@ -27,6 +27,9 @@ internal sealed class HandViewModelSystem(WorldObject hand, WorldObject heldBloc
 
     public void Update(ref Scene scene, double deltaTime)
     {
+        if (GameStateManager.IsDead)
+            return;
+
         bool uiActive = GameStateManager.IsInventory;
 
         var hotbarEntity = scene.GetEntitiesWith<Hotbar>().FirstOrDefault();

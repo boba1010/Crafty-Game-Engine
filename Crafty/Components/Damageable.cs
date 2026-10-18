@@ -2,7 +2,8 @@
 
 namespace Crafty.Components;
 
-public struct Damageable : IComponent
+public struct Damageable() : IComponent
 {
-    public int Health;
+    public int Health = 20;
+    public int MaxHealth = 20;
 }

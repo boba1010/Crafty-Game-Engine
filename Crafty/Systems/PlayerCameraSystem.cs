@@ -26,6 +26,9 @@ public sealed class PlayerCameraSystem(WorldObject playerModel)
         var player = scene.GetEntitiesWith<Player>().FirstOrDefault();
         var camera = scene.GetEntitiesWith<Camera>().FirstOrDefault();
 
+        if (scene.HasComponent<Dead>(player))
+            return;
+
         var delta = InputManager.MouseDelta;
 
         IsMouseMoving = delta.X != 0f || delta.Y != 0f;

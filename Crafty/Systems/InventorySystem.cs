@@ -29,21 +29,21 @@ public sealed class InventorySystem : IGameplaySystem
 
     private void Input_KeyDown(Key key)
     {
-        if (GameStateManager.IsPaused)
+        if (GameStateManager.IsPaused || GameStateManager.IsDead)
             return;
 
         if (key == Key.E)
         {
-            if (_isOpen) 
+            if (_isOpen)
                 CloseInventory(); 
-            else 
+            else
                 OpenInventory();
         }
         else if (key == Key.Escape && GameStateManager.IsInventory)
             CloseInventory();
     }
 
-    private void OpenInventory()
+    private static void OpenInventory()
     {
         _isOpen = true;
         HudInventory.Open();
@@ -51,10 +51,12 @@ public sealed class InventorySystem : IGameplaySystem
         SystemAPI.Input.CursorMode = Cursor.Normal;
     }
 
-    private void CloseInventory()
+    private static void CloseInventory()
     {
         _isOpen = false;
         HudInventory.Close();
+        if (GameStateManager.IsDead)
+            return;
         GameStateManager.Set(GameState.Playing);
         SystemAPI.Input.CursorMode = Cursor.Raw;
     }
@@ -67,8 +69,12 @@ public sealed class InventorySystem : IGameplaySystem
     {
         InsertItems();
 
+        if (GameStateManager.IsDead)
+            CloseInventory();
+
         var playerObject = scene.GetEntitiesWith<Inventory>().FirstOrDefault();
-        if (!scene.HasComponent<Hotbar>(playerObject))
+
+        if (!scene.HasComponent<Hotbar>(playerObject) || scene.HasComponent<Dead>(playerObject))
             return;
 
         ref var inventory = ref scene.GetComponent<Inventory>(playerObject);

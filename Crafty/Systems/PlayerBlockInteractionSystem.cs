@@ -23,7 +23,7 @@ public sealed class PlayerBlockInteractionSystem(World world) : IGameplaySystem
 
     public void Update(ref Scene scene, double deltaTime)
     {
-        if (GameStateManager.IsInventory)
+        if (GameStateManager.IsInventory || GameStateManager.IsDead)
             return;
 
         var cameraObject = scene.GetEntitiesWith<Camera>().FirstOrDefault();

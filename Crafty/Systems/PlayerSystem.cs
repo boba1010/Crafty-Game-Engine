@@ -13,9 +13,12 @@ public sealed class PlayerSystem : ISystem
 
         ref var player = ref scene.GetComponent<Player>(playerObject);
 
+        ref var health = ref scene.GetComponent<Damageable>(playerObject);
+
         if (player.GameMode is GameMode.Survival)
         {
             HudHearts.IsVisible = true;
+            HudHearts.SetHealth(health.Health, health.MaxHealth);
         }
         else
         {

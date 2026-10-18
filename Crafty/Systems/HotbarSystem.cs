@@ -22,7 +22,7 @@ public sealed class HotbarSystem : IGameplaySystem
 
     private void Input_MouseWheel(float delta)
     {
-        if (GameStateManager.IsPaused || GameStateManager.IsInventory)
+        if (GameStateManager.IsPaused || GameStateManager.IsInventory || GameStateManager.IsDead)
             return;
 
         if (delta > 0)
@@ -39,7 +39,7 @@ public sealed class HotbarSystem : IGameplaySystem
 
     private void Input_KeyDown(Key key)
     {
-        if (GameStateManager.IsPaused || GameStateManager.IsInventory)
+        if (GameStateManager.IsPaused || GameStateManager.IsInventory || GameStateManager.IsDead)
             return;
 
         int slot = key switch

@@ -11,7 +11,6 @@ namespace Crafty.Systems.Physics;
 public sealed class PlayerMovementSystem : IGameplaySystem
 {
     public double Speed { get; set; } = 5;
-    public double Gravity { get; set; } = 40;
     public double JumpForce { get; set; } = 10;
     private bool _isSprintPressed;
     private bool _isFlying = true;
@@ -24,7 +23,7 @@ public sealed class PlayerMovementSystem : IGameplaySystem
 
     private void Input_KeyUp(Key key)
     {
-        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
+        if (GameStateManager.IsInventory || GameStateManager.IsPaused || GameStateManager.IsDead)
             return;
 
         if (key is Key.ControlLeft)
@@ -34,7 +33,7 @@ public sealed class PlayerMovementSystem : IGameplaySystem
 
     private void Input_KeyDown(Key key)
     {
-        if (GameStateManager.IsInventory || GameStateManager.IsPaused)
+        if (GameStateManager.IsInventory || GameStateManager.IsPaused || GameStateManager.IsDead)
             return;
 
         if (key is Key.Space && IsDoublePressed())
@@ -61,6 +60,9 @@ public sealed class PlayerMovementSystem : IGameplaySystem
 
         foreach (var player in scene.GetEntitiesWith<Player>())
         {
+            if (scene.HasComponent<Dead>(player))
+                return;
+
             ref var transform = ref scene.GetComponent<Transform>(player);
             ref var movementComponent = ref scene.GetComponent<Movement>(player);
 
@@ -90,8 +92,6 @@ public sealed class PlayerMovementSystem : IGameplaySystem
             }
             else
             {
-                movementComponent.Velocity.Y -= (float)(Gravity * deltaTime);
-
                 if (SystemAPI.Input.IsKeyPressed(Key.Space) && movementComponent.IsGrounded)
                 {
                     movementComponent.Velocity.Y = (float)JumpForce;

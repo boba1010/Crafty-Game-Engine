@@ -101,9 +101,15 @@ public sealed class Grid : UIElement
 
         foreach (ChildEntry entry in _children)
         {
+            //Vector2 childAvailable = new(
+            //    Math.Max(0f, availableSize.X - Margin.Horizontal),
+            //    Math.Max(0f, availableSize.Y - Margin.Vertical));
+
+            Thickness margin = entry.Element.Margin;
+
             Vector2 childAvailable = new(
-                Math.Max(0f, availableSize.X - Margin.Horizontal),
-                Math.Max(0f, availableSize.Y - Margin.Vertical));
+                Math.Max(0f, availableSize.X - margin.Horizontal),
+                Math.Max(0f, availableSize.Y - margin.Vertical));
 
             Vector2 measured = entry.Element.Measure(childAvailable);
 

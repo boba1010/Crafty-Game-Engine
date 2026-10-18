@@ -182,7 +182,7 @@ public static class MoonRenderer
         });
     }
 
-    internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 view, Matrix4x4 projection)
+    internal static void Render(ICommandBuffer commandBuffer, Vector3 cameraPosition, Matrix4x4 viewProjection)
     {
         if (!MoonVisible)
             return;
@@ -220,7 +220,7 @@ public static class MoonRenderer
 
         var constants = new MoonConstants
         {
-            MVP = view * projection,
+            MVP = viewProjection,
         };
 
         _constantBuffer.Upload(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref constants, 1)));

@@ -142,86 +142,123 @@ public static class WorldMeshManager
     }
 
     private static WorldMeshSection?[] _visibleSectionsBuffer = new WorldMeshSection?[1024];
-    public static int GetVisibleSections(Vector3 cameraPosition, out WorldMeshSection?[] visibleSections)
+    public static int GetVisibleSections(Vector3 cameraPosition, Matrix4x4 viewProjection, out WorldMeshSection?[] visibleSections)
     {
+        const int planeCount = 6;
+
+        Span<Vector4> planes = stackalloc Vector4[planeCount];
+        ExtractFrustumPlanes(viewProjection, planes);
+
         int sectionSize = SectionCoordinate.SectionSize;
-        int chunkSize = SectionCoordinate.ChunkSize;
-        int sectionsPerChunk = chunkSize / sectionSize;
-        int radius = (int)MathF.Ceiling(RenderDistance / sectionSize);
 
-        int cameraWorldSectionX = (int)MathF.Floor(cameraPosition.X / sectionSize);
-        int cameraSectionY = (int)MathF.Floor(cameraPosition.Y / sectionSize);
-        int cameraWorldSectionZ = (int)MathF.Floor(cameraPosition.Z / sectionSize);
+        float renderDistanceBlocks = RenderDistance * SectionCoordinate.ChunkSize;
 
-        float renderDistanceSquared = RenderDistance * RenderDistance;
-        float halfSection = sectionSize * 0.5f;
-        int diameter = radius * 2 + 1;
-        int maxCapacity = diameter * diameter * SectionCoordinate.SectionsY;
+        float renderDistanceSquared = renderDistanceBlocks * renderDistanceBlocks;
 
-        if (_visibleSectionsBuffer.Length < maxCapacity)
-            Array.Resize(ref _visibleSectionsBuffer, maxCapacity);
+        int sectionCount = _sections.Count;
+
+        if (_visibleSectionsBuffer.Length < sectionCount)
+            Array.Resize(ref _visibleSectionsBuffer, Math.Max(sectionCount, _visibleSectionsBuffer.Length * 2));
 
         int count = 0;
 
-        for (int x = -radius; x <= radius; x++)
+        foreach (var pair in _sections)
         {
-            int worldSectionX = cameraWorldSectionX + x;
-            float centerX = worldSectionX * sectionSize + halfSection;
-            float dx = centerX - cameraPosition.X;
-            float dxSquared = dx * dx;
+            var section = pair.Value;
+            var coordinate = pair.Key;
 
-            if (dxSquared > renderDistanceSquared)
+            Vector3 min = coordinate.WorldPosition;
+            Vector3 max = min + new Vector3(sectionSize);
+
+            // Preserve the existing spherical render-distance check,
+            // using the section center.
+            Vector3 center = (min + max) * 0.5f;
+            Vector3 offset = center - cameraPosition;
+
+            if (offset.LengthSquared() > renderDistanceSquared)
                 continue;
 
-            for (int z = -radius; z <= radius; z++)
-            {
-                int worldSectionZ = cameraWorldSectionZ + z;
-                float centerZ = worldSectionZ * sectionSize + halfSection;
-                float dz = centerZ - cameraPosition.Z;
-                float horizontalDistanceSquared = dxSquared + dz * dz;
+            // Reject sections whose bounding boxes are outside
+            // the camera's view frustum.
+            if (!IsInsideFrustum(min, max, planes))
+                continue;
 
-                if (horizontalDistanceSquared > renderDistanceSquared)
-                    continue;
+            if (count == _visibleSectionsBuffer.Length)
+                Array.Resize(ref _visibleSectionsBuffer, Math.Max(1024, _visibleSectionsBuffer.Length * 2));
 
-                float verticalRadius = MathF.Sqrt(
-                    renderDistanceSquared - horizontalDistanceSquared);
-
-                int minY = Math.Max(0, (int)MathF.Floor((cameraPosition.Y - verticalRadius) / sectionSize));
-
-                int maxY = Math.Min(
-                    SectionCoordinate.SectionsY - 1,
-                    (int)MathF.Ceiling((cameraPosition.Y + verticalRadius) / sectionSize));
-
-                int chunkX = Math.DivRem(worldSectionX, sectionsPerChunk, out int localSectionX);
-
-                int chunkZ = Math.DivRem(worldSectionZ, sectionsPerChunk, out int localSectionZ);
-
-                if (localSectionX < 0)
-                {
-                    localSectionX += sectionsPerChunk;
-                    chunkX--;
-                }
-
-                if (localSectionZ < 0)
-                {
-                    localSectionZ += sectionsPerChunk;
-                    chunkZ--;
-                }
-
-                for (int sectionY = minY; sectionY <= maxY; sectionY++)
-                {
-                    var coordinate = new SectionCoordinate(chunkX, chunkZ, localSectionX, sectionY, localSectionZ);
-
-                    if (!_sections.TryGetValue(coordinate, out var section))
-                        continue;
-
-                    _visibleSectionsBuffer[count++] = section;
-                }
-            }
+            _visibleSectionsBuffer[count++] = section;
         }
 
         visibleSections = _visibleSectionsBuffer;
         return count;
+    }
+
+    private static bool IsInsideFrustum(Vector3 min, Vector3 max, ReadOnlySpan<Vector4> planes)
+    {
+        foreach (var plane in planes)
+        {
+            // Positive vertex: the AABB corner furthest along the
+            // plane normal. If it is outside, the entire box is out.
+            var positive = new Vector3(plane.X >= 0 ? max.X : min.X, plane.Y >= 0 ? max.Y : min.Y, plane.Z >= 0 ? max.Z : min.Z);
+
+            if (Vector3.Dot(new(plane.X, plane.Y, plane.Z), positive) + plane.W < 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void ExtractFrustumPlanes(Matrix4x4 m, Span<Vector4> planes)
+    {
+        // System.Numerics row-vector convention:
+        // clip position = position * viewProjection.
+        // System.Numerics perspective projection uses D3D-style
+        // depth (0..1).
+
+        planes[0] = new Vector4(
+            m.M14 + m.M11,
+            m.M24 + m.M21,
+            m.M34 + m.M31,
+            m.M44 + m.M41); // Left
+
+        planes[1] = new Vector4(
+            m.M14 - m.M11,
+            m.M24 - m.M21,
+            m.M34 - m.M31,
+            m.M44 - m.M41); // Right
+
+        planes[2] = new Vector4(
+            m.M14 + m.M12,
+            m.M24 + m.M22,
+            m.M34 + m.M32,
+            m.M44 + m.M42); // Bottom
+
+        planes[3] = new Vector4(
+            m.M14 - m.M12,
+            m.M24 - m.M22,
+            m.M34 - m.M32,
+            m.M44 - m.M42); // Top
+
+        planes[4] = new Vector4(
+            m.M13,
+            m.M23,
+            m.M33,
+            m.M43); // Near: z >= 0
+
+        planes[5] = new Vector4(
+            m.M14 - m.M13,
+            m.M24 - m.M23,
+            m.M34 - m.M33,
+            m.M44 - m.M43); // Far: z <= w
+
+        for (int i = 0; i < planes.Length; i++)
+        {
+            var plane = planes[i];
+            float length = new Vector3(plane.X, plane.Y, plane.Z).Length();
+
+            if (length > 0f)
+                planes[i] = plane / length;
+        }
     }
 
     public static void Clear()
