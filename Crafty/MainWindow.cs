@@ -15,6 +15,7 @@ using CraftyNative.ThreeD;
 using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.Physics;
 using System.Numerics;
+using CraftyNative.ThreeD.World;
 
 namespace Crafty;
 

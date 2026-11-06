@@ -13,6 +13,7 @@ public sealed class Chunk : IChunk
     public byte[] Light { get; } = new byte[Volume];
     public bool IsModified { get; set; }
     public bool IsRuntimeModified { get; set; }
+    public bool IsEmpty => Blocks.Length <= 0;
 
     public static int GetIndex(int x, int y, int z)
     {

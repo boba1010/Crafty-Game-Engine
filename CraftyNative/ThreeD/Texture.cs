@@ -13,7 +13,7 @@ public sealed class Texture : IDisposable
 
     public static Texture Create(ImageData image)
     {
-        return CraftyNative.CreateTexture(image);
+        return NativeMaterialsManager.CreateTexture(image);
     }
 
     public void Dispose()

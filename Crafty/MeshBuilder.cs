@@ -180,6 +180,8 @@ public static class MeshBuilder
 
     public static SectionMeshes BuildSectionMesh(World world, int sectionX, int sectionY, int sectionZ, int chunkX, int chunkZ)
     {
+        const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
+
         int startX = chunkX * Chunk.Size + sectionX * SectionCoordinate.SectionSize;
         int startY = sectionY * SectionCoordinate.SectionSize;
         int startZ = chunkZ * Chunk.Size + sectionZ * SectionCoordinate.SectionSize;
@@ -191,6 +193,10 @@ public static class MeshBuilder
         var atlas = GlobalAtlas;
         var opaque = new MeshData();
         var translucent = new MeshData();
+
+        uint[] aoIds = new uint[27];
+        int[] aoStamps = new int[27];
+        int aoStamp = 0;
 
         for (int x = startX; x < endX; x++)
         {
@@ -205,91 +211,105 @@ public static class MeshBuilder
 
                     var blockDef = GameAPIs.BlockRegistry.Get(block.Id);
                     var model = blockDef.Model;
+                    bool transparent = blockDef.Properties.Transparent;
+
+                    ref var target = ref (RenderInfo(block.Id).Translucent ? ref translucent : ref opaque);
+
+                    // Get neighboring blocks once, not once per model element.
+                    var left = world.GetBlock(x - 1, y, z);
+                    var right = world.GetBlock(x + 1, y, z);
+                    var bottom = y == 0 ? default : world.GetBlock(x, y - 1, z);
+                    var top = y + 1 >= worldHeight ? default : world.GetBlock(x, y + 1, z);
+                    var front = world.GetBlock(x, y, z - 1);
+                    var back = world.GetBlock(x, y, z + 1);
+
+                    bool drawLeft = ShouldDrawFace(block.Id, left.Id, transparent);
+                    bool drawRight = ShouldDrawFace(block.Id, right.Id, transparent);
+                    bool drawBottom = y == 0 || ShouldDrawFace(block.Id, bottom.Id, transparent);
+                    bool drawTop = y + 1 >= worldHeight || ShouldDrawFace(block.Id, top.Id, transparent);
+                    bool drawFront = ShouldDrawFace(block.Id, front.Id, transparent);
+                    bool drawBack = ShouldDrawFace(block.Id, back.Id, transparent);
+
+                    // Brightness is also calculated once per visible face.
+                    float leftLight = drawLeft ? GetBrightness(world, x - 1, y, z) * 0.8f : 0f;
+
+                    float rightLight = drawRight ? GetBrightness(world, x + 1, y, z) * 0.8f : 0f;
+
+                    float bottomLight = drawBottom ? GetBrightness(world, x, y - 1, z) * 0.5f : 0f;
+
+                    float topLight = drawTop ? GetBrightness(world, x, y + 1, z) : 0f;
+
+                    float frontLight = drawFront ? GetBrightness(world, x, y, z - 1) * 0.65f : 0f;
+
+                    float backLight = drawBack ? GetBrightness(world, x, y, z + 1) * 0.65f : 0f;
 
                     int localX = x - startX;
                     int localY = y - startY;
                     int localZ = z - startZ;
 
-                    ref var target = ref (
-                        RenderInfo(block.Id).Translucent
-                            ? ref translucent
-                            : ref opaque);
+                    int currentAOStamp = ++aoStamp;
 
                     foreach (var element in model.Elements)
                     {
-                        if (ShouldDrawFace(
-                            block.Id, world.GetBlock(x - 1, y, z).Id,
-                            blockDef.Properties.Transparent))
+                        if (drawLeft)
                         {
                             AddElementFace(
                                 ref target, localX, localY, localZ,
                                 Face.Left, element, block.State, atlas,
-                                GetBrightness(world, x - 1, y, z) * 0.8f,
-                                world, x, y, z);
+                                leftLight, world, x, y, z,
+                                aoIds, aoStamps, currentAOStamp);
                         }
 
-                        if (ShouldDrawFace(
-                            block.Id, world.GetBlock(x + 1, y, z).Id,
-                            blockDef.Properties.Transparent))
+                        if (drawRight)
                         {
                             AddElementFace(
                                 ref target, localX, localY, localZ,
                                 Face.Right, element, block.State, atlas,
-                                GetBrightness(world, x + 1, y, z) * 0.8f,
-                                world, x, y, z);
+                                rightLight, world, x, y, z,
+                                aoIds, aoStamps, currentAOStamp);
                         }
 
-                        if (y == 0 || ShouldDrawFace(
-                            block.Id, world.GetBlock(x, y - 1, z).Id,
-                            blockDef.Properties.Transparent))
+                        if (drawBottom)
                         {
                             AddElementFace(
                                 ref target, localX, localY, localZ,
                                 Face.Bottom, element, block.State, atlas,
-                                GetBrightness(world, x, y - 1, z) * 0.5f,
-                                world, x, y, z);
+                                bottomLight, world, x, y, z,
+                                aoIds, aoStamps, currentAOStamp);
                         }
 
-                        if (ShouldDrawFace(
-                            block.Id, world.GetBlock(x, y + 1, z).Id,
-                            blockDef.Properties.Transparent))
+                        if (drawTop)
                         {
                             AddElementFace(
                                 ref target, localX, localY, localZ,
                                 Face.Top, element, block.State, atlas,
-                                GetBrightness(world, x, y + 1, z),
-                                world, x, y, z);
+                                topLight, world, x, y, z,
+                                aoIds, aoStamps, currentAOStamp);
                         }
 
-                        if (ShouldDrawFace(
-                            block.Id, world.GetBlock(x, y, z - 1).Id,
-                            blockDef.Properties.Transparent))
+                        if (drawFront)
                         {
                             AddElementFace(
                                 ref target, localX, localY, localZ,
                                 Face.Front, element, block.State, atlas,
-                                GetBrightness(world, x, y, z - 1) * 0.65f,
-                                world, x, y, z);
+                                frontLight, world, x, y, z,
+                                aoIds, aoStamps, currentAOStamp);
                         }
 
-                        if (ShouldDrawFace(
-                            block.Id, world.GetBlock(x, y, z + 1).Id,
-                            blockDef.Properties.Transparent))
+                        if (drawBack)
                         {
                             AddElementFace(
                                 ref target, localX, localY, localZ,
                                 Face.Back, element, block.State, atlas,
-                                GetBrightness(world, x, y, z + 1) * 0.65f,
-                                world, x, y, z);
+                                backLight, world, x, y, z,
+                                aoIds, aoStamps, currentAOStamp);
                         }
                     }
                 }
             }
         }
 
-        return new SectionMeshes(
-            Wrap(opaque, atlas),
-            Wrap(translucent, atlas));
+        return new SectionMeshes(Wrap(opaque, atlas), Wrap(translucent, atlas));
     }
 
     private static Mesh Wrap(MeshData data, ChunkTextureAtlas atlas)
@@ -306,7 +326,8 @@ public static class MeshBuilder
         Face face, BlockElement element,
         byte state, ChunkTextureAtlas atlas,
         float light = 1f, World? aoWorld = null,
-        int worldX = 0, int worldY = 0, int worldZ = 0)
+        int worldX = 0, int worldY = 0, int worldZ = 0,
+        uint[]? aoIds = null, int[]? aoStamps = null, int aoStamp = 0)
     {
         var direction = ToBlockFaceDirection(face);
         var modelFace = GetModelFace(element, direction);
@@ -400,10 +421,24 @@ public static class MeshBuilder
 
         if (aoWorld is not null)
         {
-            ao0 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v0);
-            ao1 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v1);
-            ao2 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v2);
-            ao3 = GetVertexAO(aoWorld, worldX, worldY, worldZ, face, v3);
+            if (aoIds is null || aoStamps is null)
+                throw new ArgumentNullException(nameof(aoIds));
+
+            ao0 = GetVertexAO(
+                aoWorld, worldX, worldY, worldZ,
+                face, v0, aoIds, aoStamps, aoStamp);
+
+            ao1 = GetVertexAO(
+                aoWorld, worldX, worldY, worldZ,
+                face, v1, aoIds, aoStamps, aoStamp);
+
+            ao2 = GetVertexAO(
+                aoWorld, worldX, worldY, worldZ,
+                face, v2, aoIds, aoStamps, aoStamp);
+
+            ao3 = GetVertexAO(
+                aoWorld, worldX, worldY, worldZ,
+                face, v3, aoIds, aoStamps, aoStamp);
         }
 
         if (state != 0)
@@ -428,25 +463,29 @@ public static class MeshBuilder
         AddVertex(ref mesh, v2.X, v2.Y, v2.Z, U(u2, region), V(v_2, region), light * ao2);
         AddVertex(ref mesh, v3.X, v3.Y, v3.Z, U(u3, region), V(v_3, region), light * ao3);
 
-        mesh.Indices.AddRange(face switch
+        if (face is Face.Left or Face.Right or Face.Front or Face.Back)
         {
-            Face.Left or Face.Right or Face.Front or Face.Back =>
-            [
-                i, i + 2, i + 1,
-                i, i + 3, i + 2
-            ],
+            mesh.Indices.Add(i);
+            mesh.Indices.Add(i + 2);
+            mesh.Indices.Add(i + 1);
 
-            Face.Bottom or Face.Top =>
-            [
-                i, i + 1, i + 2,
-                i, i + 2, i + 3
-            ],
+            mesh.Indices.Add(i);
+            mesh.Indices.Add(i + 3);
+            mesh.Indices.Add(i + 2);
+        }
+        else
+        {
+            mesh.Indices.Add(i);
+            mesh.Indices.Add(i + 1);
+            mesh.Indices.Add(i + 2);
 
-            _ => throw new ArgumentOutOfRangeException(nameof(face), face, null)
-        });
+            mesh.Indices.Add(i);
+            mesh.Indices.Add(i + 2);
+            mesh.Indices.Add(i + 3);
+        }
     }
 
-    private static float GetVertexAO(World world, int x, int y, int z, Face face, Vector3 vertex)
+    private static float GetVertexAO(World world, int x, int y, int z, Face face, Vector3 vertex, uint[] aoIds, int[] aoStamps, int stamp)
     {
         int sx = vertex.X < 0.5f ? -1 : 1;
         int sy = vertex.Y < 0.5f ? -1 : 1;
@@ -483,32 +522,51 @@ public static class MeshBuilder
                 break;
         }
 
-        bool side1 = IsAOBlock(world, x + nx + ax, y + ny + ay, z + nz + az);
+        bool side1 = IsAOBlock(
+            world, x, y, z,
+            nx + ax, ny + ay, nz + az,
+            aoIds, aoStamps, stamp);
 
-        bool side2 = IsAOBlock(world, x + nx + bx, y + ny + by, z + nz + bz);
+        bool side2 = IsAOBlock(
+            world, x, y, z,
+            nx + bx, ny + by, nz + bz,
+            aoIds, aoStamps, stamp);
 
-        bool corner = IsAOBlock(world, x + nx + ax + bx, y + ny + ay + by, z + nz + az + bz);
+        bool corner = IsAOBlock(
+            world, x, y, z,
+            nx + ax + bx,
+            ny + ay + by,
+            nz + az + bz, 
+            aoIds, aoStamps, stamp);
 
-        int ao = side1 && side2
-            ? 0
-            : 3
-                - (side1 ? 1 : 0)
-                - (side2 ? 1 : 0)
-                - (corner ? 1 : 0);
+        int ao = side1 && side2 ? 0 : 3 - (side1 ? 1 : 0) - (side2 ? 1 : 0) - (corner ? 1 : 0);
 
         return 0.55f + ao * 0.15f;
     }
 
-    private static bool IsAOBlock(World world, int x, int y, int z)
+    private static bool IsAOBlock(World world, int x, int y, int z, int dx, int dy, int dz, uint[] aoIds, int[] aoStamps, int stamp)
     {
-        const int worldHeight = SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
+        const int worldHeight =
+            SectionCoordinate.SectionsY * SectionCoordinate.SectionSize;
 
-        if (y < 0 || y >= worldHeight)
+        int worldY = y + dy;
+
+        if (worldY < 0 || worldY >= worldHeight)
             return false;
 
-        uint id = world.GetBlock(x, y, z).Id;
+        int index = (dx + 1) * 9 + (dy + 1) * 3 + (dz + 1);
 
-        return id != 0 && RenderInfo(id).Opaque;
+        if (aoStamps[index] != stamp)
+        {
+            uint id = world.GetBlock(x + dx, worldY, z + dz).Id;
+
+            aoIds[index] = id;
+            aoStamps[index] = stamp;
+        }
+
+        uint blockId = aoIds[index];
+
+        return blockId != 0 && RenderInfo(blockId).Opaque;
     }
 
     private static Vector3 RotateY(Vector3 position, byte state)

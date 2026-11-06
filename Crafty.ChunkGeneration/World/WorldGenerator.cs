@@ -27,8 +27,6 @@ internal sealed class WorldGenerator
         {
             for (int z = min; z < max; z++)
             {
-                WorldIOManager.SaveChunk((Chunk)GenerateChunk(x, z, seed));
-
                 int currentCompleted = Interlocked.Increment(ref completedChunks);
                 float currentProgress = (float)currentCompleted / totalChunks;
                 progress?.Report(new("Generating World...", currentProgress));

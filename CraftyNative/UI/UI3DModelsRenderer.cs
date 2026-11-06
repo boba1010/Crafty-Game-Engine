@@ -94,7 +94,7 @@ public static class UI3DModelsRenderer
                 MaxDepth = 1f
             });
 
-            CraftyNative.DrawHudMesh(draw.Mesh, BuildMvp(draw.Mesh, draw.Size, draw.Rotation, draw.Scale), draw.Clip);
+            Rendering.CraftyNative.DrawHudMesh(draw.Mesh, BuildMvp(draw.Mesh, draw.Size, draw.Rotation, draw.Scale), draw.Clip);
         }
 
         commandBuffer.SetViewport(new Viewport

@@ -1,7 +1,7 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.Core;
 using Crafty.SDK.World;
-using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ThreeD.World;
 
 namespace Crafty.Systems.Lighting;
 

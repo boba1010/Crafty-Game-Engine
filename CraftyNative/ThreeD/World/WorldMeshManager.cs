@@ -1,15 +1,25 @@
-﻿using CraftyNative.ThreeD.World;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Numerics;
 
-namespace CraftyNative.ThreeD.Meshes;
+namespace CraftyNative.ThreeD.World;
 
 public static class WorldMeshManager
 {
+    public sealed class ChunkMeshSet
+    {
+        public WorldMeshSection[] Sections = [];
+        public int Version;
+    }
+
     private static readonly ConcurrentDictionary<SectionCoordinate, WorldMeshSection> _sections = new();
     private static readonly ConcurrentQueue<(int X, int Y, int Z)> _dirtyBlocks = new();
     private static readonly ConcurrentQueue<WorldMeshSection> _dirtySections = new();
+    private static readonly ConcurrentDictionary<(int X, int Z), ChunkMeshSet> _chunkSets = new();
+    private static readonly ConcurrentQueue<(int X, int Z)> _removedChunks = new();
+    private static readonly ConcurrentQueue<SectionCoordinate> _missingSections = new();
+    private static readonly ConcurrentDictionary<SectionCoordinate, byte> _missingQueued = new();
 
+    public static IEnumerable<KeyValuePair<(int X, int Z), ChunkMeshSet>> Chunks => _chunkSets;
     public static bool HasDirtyBlocks => !_dirtyBlocks.IsEmpty;
     public static float RenderDistance { get; set; } = 256f;
 
@@ -105,8 +115,16 @@ public static class WorldMeshManager
             chunkZ++;
         }
         var coordinate = new SectionCoordinate(chunkX, chunkZ, sectionX, sectionY, sectionZ);
-        if (!_sections.TryGetValue(coordinate, out var section) || section.IsDirty)
+        if (!_sections.TryGetValue(coordinate, out var section))
+        {
+            if (_missingQueued.TryAdd(coordinate, 0))
+                _missingSections.Enqueue(coordinate);
             return;
+        }
+
+        if (section.IsDirty)
+            return;
+
         section.MarkDirty();
         _dirtySections.Enqueue(section);
     }
@@ -116,24 +134,46 @@ public static class WorldMeshManager
         return _sections.TryAdd(section.Coordinate, section);
     }
 
+    public static void AddOrReplace(WorldMeshSection section) => _sections[section.Coordinate] = section;
+
     public static bool RemoveSection(SectionCoordinate coordinate)
     {
         return _sections.Remove(coordinate, out _);
     }
 
-    public static bool RemoveChunk(int x, int z)
+    public static void UpdateSection(WorldMeshSection section)
     {
-        bool removed = false;
+        _sections[section.Coordinate] = section;
 
-        foreach (var coordinate in _sections.Keys)
+        if (!_chunkSets.TryGetValue((section.Coordinate.ChunkX, section.Coordinate.ChunkZ), out var set))
+            return;
+
+        lock (set)
         {
-            if (coordinate.ChunkX != x || coordinate.ChunkZ != z)
-                continue;
+            var list = new List<WorldMeshSection>(set.Sections);
+            int index = list.FindIndex(s => s.Coordinate.Equals(section.Coordinate));
 
-            removed |= _sections.TryRemove(coordinate, out _);
+            if (index >= 0)
+                list[index] = section;
+            else
+                list.Add(section);
+
+            set.Sections = [.. list];
         }
 
-        return removed;
+        Interlocked.Increment(ref set.Version);
+    }
+
+    public static bool RemoveChunk(int x, int z)
+    {
+        if (!_chunkSets.TryRemove((x, z), out var set))
+            return false;
+
+        foreach (var section in set.Sections)
+            _sections.TryRemove(section.Coordinate, out _);
+
+        _removedChunks.Enqueue((x, z));
+        return true;
     }
 
     public static bool TryGet(SectionCoordinate coordinate, out WorldMeshSection? section)
@@ -141,18 +181,40 @@ public static class WorldMeshManager
         return _sections.TryGetValue(coordinate, out section);
     }
 
-    private static WorldMeshSection?[] _visibleSectionsBuffer = new WorldMeshSection?[1024];
-    public static int GetVisibleSections(Vector3 cameraPosition, Matrix4x4 viewProjection, out WorldMeshSection?[] visibleSections)
+    public static bool HasChunk(int x, int z) => _chunkSets.ContainsKey((x, z));
+
+    public static bool TryDequeueMissingSection(out SectionCoordinate coordinate)
     {
-        const int planeCount = 6;
+        if (_missingSections.TryDequeue(out coordinate))
+        {
+            _missingQueued.TryRemove(coordinate, out _);
+            return true;
+        }
 
-        Span<Vector4> planes = stackalloc Vector4[planeCount];
-        ExtractFrustumPlanes(viewProjection, planes);
+        return false;
+    }
 
+    public static bool TryDequeueRemovedChunk(out (int X, int Z) key) => _removedChunks.TryDequeue(out key);
+
+    public static void PublishChunk(int x, int z, WorldMeshSection[] sections)
+    {
+        var set = _chunkSets.GetOrAdd((x, z), static _ => new ChunkMeshSet());
+        set.Sections = sections;
+        Interlocked.Increment(ref set.Version);
+    }
+
+    public static void BumpChunk(int x, int z)
+    {
+        if (_chunkSets.TryGetValue((x, z), out var set))
+            Interlocked.Increment(ref set.Version);
+    }
+
+    private static WorldMeshSection?[] _visibleSectionsBuffer = new WorldMeshSection?[1024];
+    public static int GetVisibleSections(Vector3 cameraPosition, out WorldMeshSection?[] visibleSections)
+    {
         int sectionSize = SectionCoordinate.SectionSize;
 
         float renderDistanceBlocks = RenderDistance * SectionCoordinate.ChunkSize;
-
         float renderDistanceSquared = renderDistanceBlocks * renderDistanceBlocks;
 
         int sectionCount = _sections.Count;
@@ -170,95 +232,17 @@ public static class WorldMeshManager
             Vector3 min = coordinate.WorldPosition;
             Vector3 max = min + new Vector3(sectionSize);
 
-            // Preserve the existing spherical render-distance check,
-            // using the section center.
             Vector3 center = (min + max) * 0.5f;
             Vector3 offset = center - cameraPosition;
 
             if (offset.LengthSquared() > renderDistanceSquared)
                 continue;
 
-            // Reject sections whose bounding boxes are outside
-            // the camera's view frustum.
-            if (!IsInsideFrustum(min, max, planes))
-                continue;
-
-            if (count == _visibleSectionsBuffer.Length)
-                Array.Resize(ref _visibleSectionsBuffer, Math.Max(1024, _visibleSectionsBuffer.Length * 2));
-
             _visibleSectionsBuffer[count++] = section;
         }
 
         visibleSections = _visibleSectionsBuffer;
         return count;
-    }
-
-    private static bool IsInsideFrustum(Vector3 min, Vector3 max, ReadOnlySpan<Vector4> planes)
-    {
-        foreach (var plane in planes)
-        {
-            // Positive vertex: the AABB corner furthest along the
-            // plane normal. If it is outside, the entire box is out.
-            var positive = new Vector3(plane.X >= 0 ? max.X : min.X, plane.Y >= 0 ? max.Y : min.Y, plane.Z >= 0 ? max.Z : min.Z);
-
-            if (Vector3.Dot(new(plane.X, plane.Y, plane.Z), positive) + plane.W < 0)
-                return false;
-        }
-
-        return true;
-    }
-
-    private static void ExtractFrustumPlanes(Matrix4x4 m, Span<Vector4> planes)
-    {
-        // System.Numerics row-vector convention:
-        // clip position = position * viewProjection.
-        // System.Numerics perspective projection uses D3D-style
-        // depth (0..1).
-
-        planes[0] = new Vector4(
-            m.M14 + m.M11,
-            m.M24 + m.M21,
-            m.M34 + m.M31,
-            m.M44 + m.M41); // Left
-
-        planes[1] = new Vector4(
-            m.M14 - m.M11,
-            m.M24 - m.M21,
-            m.M34 - m.M31,
-            m.M44 - m.M41); // Right
-
-        planes[2] = new Vector4(
-            m.M14 + m.M12,
-            m.M24 + m.M22,
-            m.M34 + m.M32,
-            m.M44 + m.M42); // Bottom
-
-        planes[3] = new Vector4(
-            m.M14 - m.M12,
-            m.M24 - m.M22,
-            m.M34 - m.M32,
-            m.M44 - m.M42); // Top
-
-        planes[4] = new Vector4(
-            m.M13,
-            m.M23,
-            m.M33,
-            m.M43); // Near: z >= 0
-
-        planes[5] = new Vector4(
-            m.M14 - m.M13,
-            m.M24 - m.M23,
-            m.M34 - m.M33,
-            m.M44 - m.M43); // Far: z <= w
-
-        for (int i = 0; i < planes.Length; i++)
-        {
-            var plane = planes[i];
-            float length = new Vector3(plane.X, plane.Y, plane.Z).Length();
-
-            if (length > 0f)
-                planes[i] = plane / length;
-        }
     }
 
     public static void Clear()

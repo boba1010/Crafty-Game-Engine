@@ -120,7 +120,7 @@ public abstract class Window : IDisposable
     public virtual void Dispose()
     {
         InputManager?.Dispose();
-        CraftyNative.Dispose();
+        Rendering.CraftyNative.Dispose();
         GC.SuppressFinalize(this);
     }
 }

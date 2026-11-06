@@ -1,5 +1,4 @@
 ﻿using CraftyNative.ECS;
-using System.Diagnostics;
 
 namespace CraftyNative.Scenes;
 
@@ -9,7 +8,7 @@ public sealed class GameWorld : IDisposable
 
     public GameWorld(Window window)
     {
-        CraftyNative.Initialize(window.NativeWindow);
+        Rendering.CraftyNative.Initialize(window.NativeWindow);
     }
 
     public void Render(double deltaTime)
@@ -24,11 +23,11 @@ public sealed class GameWorld : IDisposable
 
         WorldObject camera = Scene.GetEntitiesWith<Camera>().FirstOrDefault();
 
-        CraftyNative.Render(ref Scene, camera, deltaTime);
+        Rendering.CraftyNative.Render(ref Scene, camera, deltaTime);
     }
 
     public void Dispose()
     {
-        CraftyNative.Dispose();
+        Rendering.CraftyNative.Dispose();
     }
 }

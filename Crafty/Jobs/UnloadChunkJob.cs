@@ -1,6 +1,6 @@
 ﻿using Crafty.ChunkGeneration.World;
 using CraftyNative.ECS;
-using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ThreeD.World;
 
 namespace Crafty.Jobs;
 

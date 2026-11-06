@@ -21,7 +21,7 @@ public sealed class JobSystem : IJobSystem, IDisposable
             {
                 Name = $"CraftyNative.Worker.{i}",
                 IsBackground = true,
-                Priority = ThreadPriority.AboveNormal
+                Priority = ThreadPriority.Normal
             };
             _workerThreads[i].Start();
         }

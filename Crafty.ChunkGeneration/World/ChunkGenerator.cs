@@ -18,8 +18,6 @@ internal class ChunkGenerator : IChunkGenerator
 
     public IChunk Generate(in ChunkGenerationContext context)
     {
-        const int GroundHeight = 64;
-
         var chunk = new Chunk()
         {
             X = context.ChunkX,
@@ -30,18 +28,13 @@ internal class ChunkGenerator : IChunkGenerator
         {
             for (int z = 0; z < Chunk.Size; z++)
             {
-                for (int y = context.MinY; y < context.MaxY; y++)
-                {
-                    uint blockId = y switch
-                    {
-                        _ when y < (GroundHeight - 3) => _blockIds[BlockCategory.Stone] + 0,
-                        _ when y < GroundHeight => _blockIds[BlockCategory.Nature] + 2,
-                        GroundHeight => _blockIds[BlockCategory.Nature] + 1,
-                        _ => _blockIds[BlockCategory.Nature] + 0
-                    };
+                int start = Chunk.GetIndex(x, context.MinY, z);
 
-                    chunk.Blocks[Chunk.GetIndex(x, y, z)] = new(blockId, 0);
-                }
+                Array.Fill(chunk.Blocks, new BlockPlacement(5000, 0), start, 61);
+
+                Array.Fill(chunk.Blocks, new BlockPlacement(2, 0), start + 61, 3);
+
+                Array.Fill(chunk.Blocks, new BlockPlacement(1, 0), start + 64, 1);
             }
         }
 

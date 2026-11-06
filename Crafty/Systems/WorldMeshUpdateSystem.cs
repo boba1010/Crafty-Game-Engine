@@ -3,7 +3,7 @@ using Crafty.Jobs;
 using CraftyNative;
 using CraftyNative.ECS;
 using CraftyNative.Scenes;
-using CraftyNative.ThreeD.Meshes;
+using CraftyNative.ThreeD.World;
 
 namespace Crafty.Systems;
 

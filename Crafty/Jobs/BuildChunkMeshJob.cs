@@ -1,7 +1,6 @@
 ﻿using Crafty.ChunkGeneration.World;
 using Crafty.SDK.World;
 using CraftyNative.ECS;
-using CraftyNative.ThreeD.Meshes;
 using CraftyNative.ThreeD.World;
 
 namespace Crafty.Jobs;
@@ -16,6 +15,11 @@ public readonly struct BuildChunkMeshJob(World world, IChunk chunk) : IJob
         if (_chunk is null)
             return;
 
+        if (_chunk.IsEmpty)
+            return;
+
+        var built = new List<WorldMeshSection>();
+
         for (int sectionY = 0; sectionY < SectionCoordinate.SectionsY; sectionY++)
         {
             for (int sectionZ = 0; sectionZ < 2; sectionZ++)
@@ -26,9 +30,16 @@ public readonly struct BuildChunkMeshJob(World world, IChunk chunk) : IJob
 
                     var meshes = MeshBuilder.BuildSectionMesh(_world, sectionX, sectionY, sectionZ, _chunk.X, _chunk.Z);
 
-                    WorldMeshManager.TryAdd(new WorldMeshSection(coordinate, meshes));
+                    if (meshes.Opaque.Vertices.Count == 0)
+                        continue;
+
+                    var section = new WorldMeshSection(coordinate, meshes);
+                    WorldMeshManager.AddOrReplace(section);
+                    built.Add(section);
                 }
             }
         }
+
+        WorldMeshManager.PublishChunk(_chunk.X, _chunk.Z, [.. built]);
     }
 }

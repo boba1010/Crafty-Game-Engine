@@ -7,6 +7,7 @@ public interface IChunk
 
     public bool IsModified { get; set; }
     public bool IsRuntimeModified { get; set; }
+    public bool IsEmpty { get; }
 
     public BlockPlacement GetBlock(int x, int y, int z);
     public void SetBlock(int x, int y, int z, BlockPlacement block);

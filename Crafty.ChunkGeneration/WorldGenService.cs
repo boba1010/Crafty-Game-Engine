@@ -23,10 +23,7 @@ public class WorldGenService : IWorldGenService
         string path = Path.Combine(WorldIOManager.WorldDir, "chunks", $"{x}_{z}.chunk");
 
         if (!File.Exists(path))
-        {
-            var chunk = WorldGenerator.GenerateChunk(x, z, seed);
-            WorldIOManager.SaveChunk((Chunk)chunk);
-        }
+            return (Chunk)WorldGenerator.GenerateChunk(x, z, seed);
 
         return WorldIOManager.LoadChunk(x, z);
     }

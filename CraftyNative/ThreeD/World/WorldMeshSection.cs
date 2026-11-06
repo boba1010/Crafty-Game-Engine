@@ -22,8 +22,8 @@ public sealed class WorldMeshSection(SectionCoordinate coordinate, SectionMeshes
 
         _meshes = meshes;
 
-        CraftyNative.ReleaseMesh(old.Opaque);
-        CraftyNative.ReleaseMesh(old.Translucent);
+        Rendering.CraftyNative.ReleaseMesh(old.Opaque);
+        Rendering.CraftyNative.ReleaseMesh(old.Translucent);
 
         IsDirty = false;
     }

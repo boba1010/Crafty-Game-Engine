@@ -11,7 +11,7 @@ public static class TextureRegistry
 
         var path = AssetRegistry.Get(name);
         var image = TextureLoader.Load(path);
-        texture = CraftyNative.CreateTexture(image);
+        texture = NativeMaterialsManager.CreateTexture(image);
 
         _textures.Add(name, texture);
         return texture;

@@ -23,8 +23,8 @@ public sealed class WorldTimeSystem : IGameplaySystem
         UpdateSun();
         UpdateSky();
 
-        CraftyNative.CraftyNative.Daylight = Daylight;
-        CraftyNative.CraftyNative.Moonlight = Moonlight;
+        CraftyNative.Rendering.CraftyNative.Daylight = Daylight;
+        CraftyNative.Rendering.CraftyNative.Moonlight = Moonlight;
     }
 
     private void UpdateSun()
